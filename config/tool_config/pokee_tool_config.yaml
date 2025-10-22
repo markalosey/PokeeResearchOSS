@@ -1,0 +1,61 @@
+tools:
+  - class_name: "tool_client.pokee_tools.WebSearchTool"
+    config:
+      num_workers: 60
+      rate_limit: 60
+      timeout: 300
+      retries: 2
+      delay_between_retries: 5
+      max_num_queries_in_query_list: 5
+      strategy_to_handle_too_many_queries: "cap_at_max_queries"
+      type: native
+    tool_schema:
+      type: "function"
+      function:
+        name: "web_search"
+        description: "Search the web for relevant information from google. You should use this tool if the historical page content is not enough to answer the question. Or last search result is not relevant to the question."
+        parameters:
+          type: "object"
+          properties:
+            query_list:
+              type: array
+              items:
+                type: string
+                description: A query to search, which helps answer the question.
+              description: A list of fully-formed semantic queries. The tool will return search results for each query.
+              minItems: 1
+              maxItems: 5
+              uniqueItems: true
+          required:
+            - query_list
+          additionalProperties: false
+  - class_name: "tool_client.pokee_tools.WebReadTool"
+    config: 
+      num_workers: 60
+      rate_limit: 60
+      timeout: 300
+      retries: 2
+      delay_between_retries: 5
+      max_num_urls_in_url_list: 5
+      strategy_to_handle_too_many_urls: "cap_at_max_urls"
+      type: native
+    tool_schema:
+      type: "function"
+      function:
+        name: "web_read"
+        description: "Read the webpage and return the content that not appeared in the conversation history. You should use this tool if the last action is search and the search result maybe relevant to the question."
+        parameters:
+          type: "object"
+          properties:
+            url_list:
+              type: array
+              items:
+                type: string
+                description: A url to read. Needs to come from previous search results.
+              description: The chosen urls from the search results.
+              minItems: 1
+              maxItems: 5
+              uniqueItems: true
+          required:
+            - url_list
+          additionalProperties: false
