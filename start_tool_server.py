@@ -401,7 +401,7 @@ async def search_web(request: SearchRequest) -> SearchResult:
     """
     Perform web search and return structured results.
 
-    This endpoint uses the Serper API to perform web searches and returns
+    This endpoint uses the Tavily API to perform web searches and returns
     structured results with URLs, titles, and descriptions.
 
     Args:
