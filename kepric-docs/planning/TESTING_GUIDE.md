@@ -23,6 +23,48 @@ curl http://localhost:8888/health
 
 ---
 
+## Virtual Environment Setup
+
+**IMPORTANT: Always use a virtual environment (.venv) - never install globally!**
+
+### Create and Activate Virtual Environment
+
+```bash
+cd /datapool/PokeeResearchOSS
+
+# Create virtual environment
+python3 -m venv .venv
+
+# Activate virtual environment
+source .venv/bin/activate
+
+# Upgrade pip
+pip install --upgrade pip setuptools wheel
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### Always Activate Before Use
+
+**Before running CLI or Gradio apps, always activate:**
+```bash
+cd /datapool/PokeeResearchOSS
+source .venv/bin/activate
+```
+
+**Your prompt should show `(.venv)` when activated:**
+```bash
+(.venv) mlosey@r720-zfs:/datapool/PokeeResearchOSS$
+```
+
+**To deactivate:**
+```bash
+deactivate
+```
+
+---
+
 ## Testing CLI App
 
 ### Quick Test (Single Query)
@@ -31,6 +73,7 @@ curl http://localhost:8888/health
 
 ```bash
 cd /datapool/PokeeResearchOSS
+source .venv/bin/activate  # Activate virtual environment
 python3 cli_app.py \
   --serving-mode vllm \
   --vllm-url http://localhost:9999/v1 \
@@ -40,6 +83,7 @@ python3 cli_app.py \
 **Test a research question:**
 
 ```bash
+source .venv/bin/activate  # If not already activated
 python3 cli_app.py \
   --serving-mode vllm \
   --vllm-url http://localhost:9999/v1 \
@@ -49,6 +93,7 @@ python3 cli_app.py \
 **With verbose output:**
 
 ```bash
+source .venv/bin/activate  # If not already activated
 python3 cli_app.py \
   --serving-mode vllm \
   --vllm-url http://localhost:9999/v1 \
@@ -61,6 +106,7 @@ python3 cli_app.py \
 **Start interactive CLI:**
 
 ```bash
+source .venv/bin/activate  # If not already activated
 python3 cli_app.py \
   --serving-mode vllm \
   --vllm-url http://localhost:9999/v1 \
@@ -112,6 +158,7 @@ python3 cli_app.py --help
 
 ```bash
 cd /datapool/PokeeResearchOSS
+source .venv/bin/activate  # Activate virtual environment
 python3 gradio_app.py \
   --serving-mode vllm \
   --vllm-url http://localhost:9999/v1 \
@@ -121,6 +168,7 @@ python3 gradio_app.py \
 **Start with public share link (for remote access):**
 
 ```bash
+source .venv/bin/activate  # If not already activated
 python3 gradio_app.py \
   --serving-mode vllm \
   --vllm-url http://localhost:9999/v1 \
@@ -215,7 +263,10 @@ curl http://localhost:8888/health
 
 **Fix:**
 
-- Install dependencies: `pip install gradio`
+```bash
+source .venv/bin/activate  # Activate virtual environment
+pip install gradio
+```
 - Use different port: `--port 7778`
 - Check Python version
 
@@ -225,8 +276,11 @@ curl http://localhost:8888/health
 
 ```bash
 cd /datapool/PokeeResearchOSS
+source .venv/bin/activate  # Activate virtual environment
 pip install -r requirements.txt
 ```
+
+**Note:** Always activate `.venv` before installing packages!
 
 ### Issue: Tool server not starting in Gradio
 
