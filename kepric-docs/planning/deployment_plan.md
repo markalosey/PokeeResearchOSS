@@ -52,6 +52,8 @@
 
 ---
 
+## Table of Contents
+
 1. [Pre-Deployment Preparation](#pre-deployment-preparation)
 2. [Code Modifications](#code-modifications)
 3. [Docker Setup](#docker-setup)

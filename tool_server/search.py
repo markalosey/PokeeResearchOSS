@@ -80,7 +80,9 @@ def _extract_results_from_tavily_response(data: Dict[str, Any]) -> List[SearchUR
         SearchURLItem(
             url=item.get("url", ""),
             title=item.get("title", "No Title"),
-            description=item.get("content", "No Description")[:200] if item.get("content") else "No Description",
+            description=item.get("content", "No Description")[:200]
+            if item.get("content")
+            else "No Description",
         )
         for item in results
     ]
@@ -159,7 +161,9 @@ async def tavily_search(query: str, timeout: int = 30, top_k: int = 10) -> Searc
                         "answer": data.get("answer", ""),
                         "query": data.get("query", query),
                         "response_time": data.get("response_time", 0.0),
-                        "scores": [item.get("score", 0.0) for item in data.get("results", [])],
+                        "scores": [
+                            item.get("score", 0.0) for item in data.get("results", [])
+                        ],
                     },
                 )
 
@@ -168,7 +172,7 @@ async def tavily_search(query: str, timeout: int = 30, top_k: int = 10) -> Searc
                 logger.warning(
                     f"Search failed with HTTP {response.status_code}: {error_text[:100]}"
                 )
-                
+
                 # Handle Tavily-specific errors
                 if response.status_code == 429:
                     error_msg = "Rate limit exceeded. Please try again later."
@@ -176,7 +180,7 @@ async def tavily_search(query: str, timeout: int = 30, top_k: int = 10) -> Searc
                     error_msg = "Invalid API key."
                 else:
                     error_msg = error_text[:200]
-                
+
                 return SearchResult(
                     query=query,
                     url_items=[],
