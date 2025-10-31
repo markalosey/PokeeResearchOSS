@@ -265,8 +265,6 @@ Existing containers:
 
 ---
 
----
-
 ## Repository Deployment
 
 **Question 18:** Has the repository been cloned and deployed?
