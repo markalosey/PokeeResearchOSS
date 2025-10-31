@@ -54,6 +54,7 @@ VLLM_ARGS=(
     "--max-model-len" "$MAX_MODEL_LEN"
     "--gpu-memory-utilization" "$GPU_MEMORY_UTILIZATION"
     "--host" "0.0.0.0"
+    "--disable-compilation"
 )
 
 # Add quantization only if specified and not empty
