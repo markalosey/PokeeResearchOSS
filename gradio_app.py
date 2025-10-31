@@ -218,14 +218,14 @@ def get_tool_server_status() -> dict:
     return {"running": False, "message": "Tool server not responding"}
 
 
-def save_api_keys(serper_key: str, jina_key: str, gemini_key: str) -> str:
+def save_api_keys(tavily_key: str, jina_key: str, gemini_key: str) -> str:
     """Save API keys to environment variables.
 
     Validates that all keys are provided and stores them in the current process
     environment for use by the tool server.
 
     Args:
-        serper_key: Serper API key for web search functionality
+        tavily_key: Tavily API key for web search functionality
         jina_key: Jina AI API key for web content reading
         gemini_key: Gemini API key for content summarization
 
@@ -234,13 +234,13 @@ def save_api_keys(serper_key: str, jina_key: str, gemini_key: str) -> str:
     """
     try:
         # Validate that all keys are provided
-        if not all([serper_key, jina_key, gemini_key]):
+        if not all([tavily_key, jina_key, gemini_key]):
             return "❌ Please provide all API keys"
 
         # Set environment variables
-        if serper_key:
-            os.environ["SERPER_API_KEY"] = serper_key.strip()
-            logger.info("✅ Serper API key configured")
+        if tavily_key:
+            os.environ["TAVILY_API_KEY"] = tavily_key.strip()
+            logger.info("✅ Tavily API key configured")
 
         if jina_key:
             os.environ["JINA_API_KEY"] = jina_key.strip()
@@ -289,7 +289,7 @@ def start_tool_server_ui(port: int) -> tuple[str, str]:
     tool_server_port = port
 
     # Check if API keys are configured
-    required_keys = ["SERPER_API_KEY", "JINA_API_KEY", "GEMINI_API_KEY"]
+    required_keys = ["TAVILY_API_KEY", "JINA_API_KEY", "GEMINI_API_KEY"]
     missing_keys = [key for key in required_keys if not os.environ.get(key)]
 
     if missing_keys:
@@ -607,7 +607,7 @@ def create_demo():
                 **⚠️ Important**: Configure your API keys and start the tool server before conducting research.
                 
                 ### Required API Keys:
-                - **Serper API**: For web search functionality ([Get key](https://serper.dev))
+                - **Tavily API**: For web search functionality ([Get key](https://tavily.com))
                 - **Jina AI API**: For web content reading ([Get key](https://jina.ai))
                 - **Gemini API**: For read content summarization with Gemini 2.5 Flash Lite ([Get key](https://aistudio.google.com/app/apikey))
                 """
@@ -617,11 +617,11 @@ def create_demo():
                 with gr.Column(scale=2):
                     gr.Markdown("### 1️⃣ Configure API Keys")
 
-                    serper_input = gr.Textbox(
-                        label="Serper API Key",
-                        placeholder="Enter your Serper API key...",
+                    tavily_input = gr.Textbox(
+                        label="Tavily API Key",
+                        placeholder="Enter your Tavily API key...",
                         type="password",
-                        value=os.environ.get("SERPER_API_KEY", ""),
+                        value=os.environ.get("TAVILY_API_KEY", ""),
                     )
 
                     jina_input = gr.Textbox(
@@ -782,7 +782,7 @@ def create_demo():
         # Event handlers for Setup tab
         save_keys_btn.click(
             fn=save_api_keys,
-            inputs=[serper_input, jina_input, gemini_input],
+            inputs=[tavily_input, jina_input, gemini_input],
             outputs=[save_status],
         )
 
