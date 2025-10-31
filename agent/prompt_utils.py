@@ -80,7 +80,7 @@ YOUR FINAL ANSWER (only the answer, no explanations)
 Enter only after providing an answer.
 
 <verification>
-If no reasoning in think block → output "INCORRECT"
+If no reasoning in redacted_reasoning block → output "INCORRECT"
 Otherwise verify step-by-step: check all question conditions, verify reasoning shows answer satisfies conditions based on tool responses
 </verification>
 <verification_result>
