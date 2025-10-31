@@ -218,7 +218,7 @@ def get_tool_server_status() -> dict:
     return {"running": False, "message": "Tool server not responding"}
 
 
-def save_api_keys(tavily_key: str, jina_key: str, gemini_key: str) -> str:
+def save_api_keys(tavily_key: str, gemini_key: str) -> str:
     """Save API keys to environment variables.
 
     Validates that all keys are provided and stores them in the current process
@@ -226,7 +226,6 @@ def save_api_keys(tavily_key: str, jina_key: str, gemini_key: str) -> str:
 
     Args:
         tavily_key: Tavily API key for web search functionality
-        jina_key: Jina AI API key for web content reading
         gemini_key: Gemini API key for content summarization
 
     Returns:
@@ -234,17 +233,13 @@ def save_api_keys(tavily_key: str, jina_key: str, gemini_key: str) -> str:
     """
     try:
         # Validate that all keys are provided
-        if not all([tavily_key, jina_key, gemini_key]):
+        if not all([tavily_key, gemini_key]):
             return "❌ Please provide all API keys"
 
         # Set environment variables
         if tavily_key:
             os.environ["TAVILY_API_KEY"] = tavily_key.strip()
             logger.info("✅ Tavily API key configured")
-
-        if jina_key:
-            os.environ["JINA_API_KEY"] = jina_key.strip()
-            logger.info("✅ Jina AI API key configured")
 
         if gemini_key:
             os.environ["GEMINI_API_KEY"] = gemini_key.strip()
@@ -289,7 +284,7 @@ def start_tool_server_ui(port: int) -> tuple[str, str]:
     tool_server_port = port
 
     # Check if API keys are configured
-    required_keys = ["TAVILY_API_KEY", "JINA_API_KEY", "GEMINI_API_KEY"]
+    required_keys = ["TAVILY_API_KEY", "GEMINI_API_KEY"]
     missing_keys = [key for key in required_keys if not os.environ.get(key)]
 
     if missing_keys:
@@ -608,8 +603,9 @@ def create_demo():
                 
                 ### Required API Keys:
                 - **Tavily API**: For web search functionality ([Get key](https://tavily.com))
-                - **Jina AI API**: For web content reading ([Get key](https://jina.ai))
                 - **Gemini API**: For read content summarization with Gemini 2.5 Flash Lite ([Get key](https://aistudio.google.com/app/apikey))
+                
+                **Note:** Web content reading uses Playwright browser automation (no API key required).
                 """
             )
 
@@ -622,13 +618,6 @@ def create_demo():
                         placeholder="Enter your Tavily API key...",
                         type="password",
                         value=os.environ.get("TAVILY_API_KEY", ""),
-                    )
-
-                    jina_input = gr.Textbox(
-                        label="Jina AI API Key",
-                        placeholder="Enter your Jina AI API key...",
-                        type="password",
-                        value=os.environ.get("JINA_API_KEY", ""),
                     )
 
                     gemini_input = gr.Textbox(
@@ -782,7 +771,7 @@ def create_demo():
         # Event handlers for Setup tab
         save_keys_btn.click(
             fn=save_api_keys,
-            inputs=[tavily_input, jina_input, gemini_input],
+            inputs=[tavily_input, gemini_input],
             outputs=[save_status],
         )
 
