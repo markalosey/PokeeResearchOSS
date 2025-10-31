@@ -1,0 +1,57 @@
+# Copyright 2025 Pokee AI Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Dockerfile for vLLM server with NVIDIA GPU support
+# Supports CUDA 12.2 and NVIDIA T4 GPUs
+
+FROM nvidia/cuda:12.2.0-cudnn8-devel-ubuntu22.04
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV CUDA_HOME=/usr/local/cuda
+ENV PATH=${CUDA_HOME}/bin:${PATH}
+ENV LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
+
+# Install Python and system dependencies
+RUN apt-get update && apt-get install -y \
+    python3.10 \
+    python3-pip \
+    python3.10-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create symlink for python
+RUN ln -s /usr/bin/python3.10 /usr/bin/python
+
+# Upgrade pip
+RUN pip3 install --upgrade pip setuptools wheel
+
+# Install vLLM with quantization support
+# Note: vLLM requires specific versions for CUDA 12.2 compatibility
+RUN pip3 install --no-cache-dir vllm[all]>=0.2.0
+
+# Create app directory
+WORKDIR /app
+
+# Copy startup script
+COPY scripts/start-vllm.sh /start-vllm.sh
+RUN chmod +x /start-vllm.sh
+
+# Expose vLLM port
+EXPOSE 9999
+
+# Set entrypoint
+ENTRYPOINT ["/start-vllm.sh"]
+
