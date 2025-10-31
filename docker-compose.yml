@@ -39,8 +39,8 @@ services:
       - PORT=9999
       - QUANTIZATION=${QUANTIZATION:-none}
       - HF_TOKEN=${HUGGINGFACE_TOKEN}
-      - GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.45}
-      - MAX_MODEL_LEN=${MAX_MODEL_LEN:-8192}
+      - GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.50}
+      - MAX_MODEL_LEN=${MAX_MODEL_LEN:-4096}
       # NCCL environment variables for tensor parallelism
       - NCCL_IB_DISABLE=1
       - NCCL_P2P_DISABLE=0
