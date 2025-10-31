@@ -21,7 +21,7 @@ set -e
 # Default values (can be overridden via environment variables)
 MODEL=${MODEL:-PokeeAI/pokee_research_7b}
 PORT=${PORT:-9999}
-QUANTIZATION=${QUANTIZATION:-awq}
+QUANTIZATION=${QUANTIZATION:-none}
 GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.45}
 MAX_MODEL_LEN=${MAX_MODEL_LEN:-32768}
 HF_TOKEN=${HF_TOKEN:-}
@@ -53,9 +53,14 @@ VLLM_ARGS=(
     "--dtype" "auto"
     "--max-model-len" "$MAX_MODEL_LEN"
     "--gpu-memory-utilization" "$GPU_MEMORY_UTILIZATION"
-    "--quantization" "$QUANTIZATION"
     "--host" "0.0.0.0"
 )
+
+# Add quantization only if specified and not empty
+# Note: Only specify quantization if the model repository actually contains quantized weights/config
+if [ -n "$QUANTIZATION" ] && [ "$QUANTIZATION" != "none" ]; then
+    VLLM_ARGS+=("--quantization" "$QUANTIZATION")
+fi
 
 # Note: HuggingFace token is passed via HF_TOKEN environment variable
 # vLLM will automatically use it if set - no need to pass via command line
