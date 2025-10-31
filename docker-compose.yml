@@ -39,6 +39,12 @@ services:
       - HF_TOKEN=${HUGGINGFACE_TOKEN}
       - GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.45}
       - MAX_MODEL_LEN=${MAX_MODEL_LEN:-8192}
+      # NCCL environment variables for tensor parallelism
+      - NCCL_IB_DISABLE=1
+      - NCCL_P2P_DISABLE=0
+      - NCCL_DEBUG=WARN
+      - NCCL_SOCKET_IFNAME=lo
+      - CUDA_VISIBLE_DEVICES=0,1
     volumes:
       - vllm-model-cache:/root/.cache/huggingface
     restart: unless-stopped
