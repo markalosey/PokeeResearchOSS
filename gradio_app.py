@@ -192,6 +192,7 @@ def get_tool_server_status() -> dict:
     """Check if tool server is running and healthy.
 
     Checks both process status and health endpoint response.
+    Also checks if Docker tool server is running on the port.
 
     Returns:
         dict: Status information with keys:
@@ -200,20 +201,33 @@ def get_tool_server_status() -> dict:
     """
     global tool_server_proc
 
-    if tool_server_proc is None:
-        return {"running": False, "message": "Tool server not started"}
+    # First check if Gradio-managed tool server is running
+    if tool_server_proc is not None and tool_server_proc.poll() is None:
+        try:
+            response = requests.get(f"http://localhost:{tool_server_port}/health", timeout=2.0)
+            if response.status_code == 200:
+                health_data = response.json()
+                if health_data.get("status") == "healthy":
+                    return {"running": True, "message": "Tool server is healthy (Gradio-managed)"}
+        except requests.exceptions.RequestException:
+            pass
 
-    if tool_server_proc.poll() is not None:
-        return {"running": False, "message": "Tool server has stopped"}
-
+    # If Gradio-managed server not running, check if Docker tool server is running
     try:
-        response = requests.get(f"http://localhost:{tool_server_port}", timeout=2.0)
+        response = requests.get(f"http://localhost:{tool_server_port}/health", timeout=2.0)
         if response.status_code == 200:
             health_data = response.json()
             if health_data.get("status") == "healthy":
-                return {"running": True, "message": "Tool server is healthy"}
+                return {"running": True, "message": "Tool server is healthy (Docker)"}
     except requests.exceptions.RequestException:
         pass
+
+    # No tool server found
+    if tool_server_proc is None:
+        return {"running": False, "message": "Tool server not started"}
+    
+    if tool_server_proc.poll() is not None:
+        return {"running": False, "message": "Tool server has stopped"}
 
     return {"running": False, "message": "Tool server not responding"}
 
@@ -256,6 +270,7 @@ def start_tool_server_ui(port: int) -> tuple[str, str]:
     """Start the tool server from UI button click.
 
     Validates port availability and API keys, then starts the server process.
+    If Docker tool server is already running on the port, informs user they can use it.
 
     Args:
         port: Port number to use for the tool server (1024-65535)
@@ -272,6 +287,21 @@ def start_tool_server_ui(port: int) -> tuple[str, str]:
     # Validate port range
     if not (1024 <= port <= 65535):
         return "❌ Invalid port number. Must be between 1024 and 65535", "🔴 Stopped"
+
+    # Check if Docker tool server is already running on this port
+    try:
+        response = requests.get(f"http://localhost:{port}/health", timeout=2.0)
+        if response.status_code == 200:
+            health_data = response.json()
+            if health_data.get("status") == "healthy":
+                # Docker tool server is running, update global port and use it
+                tool_server_port = port
+                return (
+                    f"✅ Docker tool server is already running on port {port}! You can use it directly.",
+                    "🟢 Running (Docker)",
+                )
+    except requests.exceptions.RequestException:
+        pass
 
     # Check port availability
     if not is_port_available(port):
