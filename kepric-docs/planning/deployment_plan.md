@@ -14,6 +14,7 @@
 ### Commits Made
 
 1. **`33f8029`** - Replace Serper API with Tavily API in tool_server/search.py
+
    - Replaced `aiohttp` with `httpx` for async HTTP requests
    - Created `tavily_search()` function replacing `serper_search()`
    - Created `_extract_results_from_tavily_response()` function
@@ -22,15 +23,13 @@
    - Updated error handling and metadata to reference Tavily
 
 2. **`321885d`** - Update comment in start_tool_server.py to reference Tavily instead of Serper
+
    - Updated docstring in `/search` endpoint
 
-3. **`917bbba`** - Update gradio_app.py to use Tavily API instead of Serper
-   - Updated `save_api_keys()` function signature: `serper_key` → `tavily_key`
-   - Updated environment variable references
-   - Updated UI labels and documentation
-   - Updated input field variable name: `serper_input` → `tavily_input`
-
----
+4. **`12b8763`** - Fix Tavily integration: Add score metadata and 429 rate limit handling
+   - Added scores array to metadata (includes score from each result item)
+   - Added specific error handling for 429 (rate limit) and 401 (invalid API key)
+   - Improved error messages for Tavily-specific HTTP status codes
 
 ## Table of Contents
 
@@ -156,8 +155,8 @@
     - `title` → `title`
     - `content` → `description` (first 200 chars)
   - [x] Update metadata: Change `provider` from `"serper"` to `"tavily"`
-  - [x] Include Tavily-specific metadata: `score`, `answer` (if available)
-  - [x] Update error handling for Tavily-specific errors (429, 401, etc.)
+  - [x] Include Tavily-specific metadata: `score`, `answer` (if available) - **VERIFIED**: Added scores array and answer, response_time
+  - [x] Update error handling for Tavily-specific errors (429, 401, etc.) - **VERIFIED**: Specific handling for 429 and 401 added
   - [x] Update timeout handling
   - [x] Update JSON decode error handling
   - [x] Update general exception handling
@@ -805,6 +804,7 @@
 #### Task 10.1: Validate Tavily Integration
 
 - [ ] **10.1.1** Test Tavily API connection
+
   ```bash
   python3 -c "from tavily import TavilyClient; client = TavilyClient(api_key='YOUR_KEY'); print(client.search('test'))"
   ```
@@ -818,6 +818,7 @@
 #### Task 10.2: Validate Playwright Integration
 
 - [ ] **10.2.1** Test Playwright installation
+
   ```bash
   python3 -c "from playwright.async_api import async_playwright; print('OK')"
   ```
@@ -831,6 +832,7 @@
 #### Task 10.3: Validate GPT-5 Integration
 
 - [ ] **10.3.1** Test OpenAI API connection
+
   ```bash
   python3 -c "from openai import AsyncOpenAI; import asyncio; client = AsyncOpenAI(api_key='KEY'); print([m.id for m in asyncio.run(client.models.list()).data if 'gpt-5' in m.id])"
   ```
@@ -854,6 +856,7 @@
 #### Task 11.1: Build Docker Images
 
 - [ ] **11.1.1** Build vLLM image
+
   ```bash
   docker compose build vllm-server
   ```
@@ -866,11 +869,13 @@
 #### Task 11.2: Test Docker Compose
 
 - [ ] **11.2.1** Validate docker-compose configuration
+
   ```bash
   docker compose config
   ```
 
 - [ ] **11.2.2** Start services and verify
+
   ```bash
   docker compose up -d
   docker compose ps
