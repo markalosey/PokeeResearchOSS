@@ -31,6 +31,72 @@ from logging_utils import setup_colored_logger
 logger = setup_colored_logger(__name__)
 
 
+def _estimate_tokens(text: str) -> int:
+    """Rough estimate of token count (1 token ≈ 4 characters).
+    
+    This is a simple heuristic. For accurate counting, use a tokenizer,
+    but this is fast and sufficient for truncation purposes.
+    
+    Args:
+        text: Text to estimate tokens for
+        
+    Returns:
+        Estimated token count
+    """
+    return len(text) // 4
+
+
+def _truncate_messages(messages: list[dict], max_tokens: int = 1800) -> list[dict]:
+    """Truncate messages to fit within token limit.
+    
+    Preserves:
+    - System message (first message)
+    - Most recent assistant responses
+    - Most recent tool responses
+    - Most recent user messages
+    
+    Args:
+        messages: List of message dicts with 'role' and 'content'
+        max_tokens: Maximum tokens to keep (default: 1800 to leave room for generation)
+        
+    Returns:
+        Truncated message list
+    """
+    if not messages:
+        return messages
+    
+    # Always keep the first message (system prompt)
+    system_message = messages[0]
+    remaining_messages = messages[1:]
+    
+    # Estimate tokens for system message
+    system_tokens = _estimate_tokens(system_message.get("content", ""))
+    available_tokens = max_tokens - system_tokens
+    
+    if available_tokens <= 0:
+        # System message itself is too long, return just it
+        return [system_message]
+    
+    # Build truncated list from the end (most recent)
+    truncated = []
+    current_tokens = 0
+    
+    # Process messages in reverse order (most recent first)
+    for msg in reversed(remaining_messages):
+        content = msg.get("content", "")
+        msg_tokens = _estimate_tokens(content)
+        
+        if current_tokens + msg_tokens <= available_tokens:
+            truncated.insert(0, msg)  # Insert at beginning to maintain order
+            current_tokens += msg_tokens
+        else:
+            # Can't fit this message, stop
+            break
+    
+    # Always include system message at the start
+    return [system_message] + truncated
+
+
 class VLLMDeepResearchAgent(BaseDeepResearchAgent):
     """Deep research agent using VLLM server for inference.
 
@@ -141,6 +207,7 @@ class VLLMDeepResearchAgent(BaseDeepResearchAgent):
 
         Makes an HTTP POST request to the VLLM chat completions endpoint.
         Supports cancellation via asyncio.CancelledError.
+        Automatically truncates messages if they exceed context limit.
 
         Args:
             messages: Conversation messages in chat format
@@ -157,10 +224,20 @@ class VLLMDeepResearchAgent(BaseDeepResearchAgent):
             httpx.RequestError: If there's a network/connection error
             ValueError: If the response format is unexpected
         """
+        # Truncate messages to fit within context limit (2048 tokens)
+        # Reserve ~200 tokens for generation, so truncate to ~1800 input tokens
+        truncated_messages = _truncate_messages(messages, max_tokens=1800)
+        
+        if len(truncated_messages) < len(messages):
+            logger.warning(
+                f"Truncated messages from {len(messages)} to {len(truncated_messages)} "
+                f"to fit context limit"
+            )
+        
         # Prepare chat completions request
         request_data = {
             "model": self.model_name,
-            "messages": messages,
+            "messages": truncated_messages,
             "temperature": temperature,
             "top_p": top_p,
             "max_tokens": self.max_tokens,
