@@ -558,22 +558,22 @@
 
 - [x] **8.1.1** Create Dockerfile for vLLM with NVIDIA GPU support
 
-  - [x] Use base image: `FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu22.04` - **VERIFIED**: Using CUDA 12.2.0 (updated for compatibility), commit d3d5c5f
-  - [x] Set environment variables: DEBIAN_FRONTEND, PYTHONUNBUFFERED - **VERIFIED**: Lines 17-19, commit d3d5c5f
-  - [x] Install Python and pip: python3.10, python3-pip - **VERIFIED**: Lines 21-26, commit d3d5c5f
-  - [x] Install vLLM with quantization support: `RUN pip3 install --no-cache-dir vllm[all]` - **VERIFIED**: Line 34, commit d3d5c5f
-  - [x] Create startup script: `COPY scripts/start-vllm.sh /start-vllm.sh` - **VERIFIED**: Lines 40-41, commit d3d5c5f
-  - [x] Expose port: `EXPOSE 9999` - **VERIFIED**: Line 44, commit d3d5c5f
-  - [x] Set entrypoint: `ENTRYPOINT ["/start-vllm.sh"]` - **VERIFIED**: Line 47, commit d3d5c5f
+  - [x] Use base image: `FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu22.04` - **VERIFIED**: Using CUDA 12.2.0 (updated for compatibility), commit 48379da
+  - [x] Set environment variables: DEBIAN_FRONTEND, PYTHONUNBUFFERED - **VERIFIED**: Lines 17-19, commit 48379da
+  - [x] Install Python and pip: python3.10, python3-pip - **VERIFIED**: Lines 21-26, commit 48379da
+  - [x] Install vLLM with quantization support: `RUN pip3 install --no-cache-dir vllm[all]` - **VERIFIED**: Line 34, commit 48379da
+  - [x] Create startup script: `COPY scripts/start-vllm.sh /start-vllm.sh` - **VERIFIED**: Lines 40-41, commit 48379da
+  - [x] Expose port: `EXPOSE 9999` - **VERIFIED**: Line 44, commit 48379da
+  - [x] Set entrypoint: `ENTRYPOINT ["/start-vllm.sh"]` - **VERIFIED**: Line 47, commit 48379da
 
 - [x] **8.1.2** Create `scripts/start-vllm.sh` script
 
-  - [x] Add shebang: `#!/bin/bash` - **VERIFIED**: Line 1, commit d3d5c5f
-  - [x] Set default model: `MODEL=${MODEL:-PokeeAI/pokee_research_7b}` - **VERIFIED**: Line 18, commit d3d5c5f
-  - [x] Set default port: `PORT=${PORT:-9999}` - **VERIFIED**: Line 19, commit d3d5c5f
-  - [x] Set quantization: `QUANTIZATION=${QUANTIZATION:-awq}` - **VERIFIED**: Line 20, commit d3d5c5f
-  - [x] Add vLLM serve command with all parameters - **VERIFIED**: Lines 33-48, commit d3d5c5f
-  - [x] Make executable: `chmod +x scripts/start-vllm.sh` - **VERIFIED**: Made executable, commit d3d5c5f
+  - [x] Add shebang: `#!/bin/bash` - **VERIFIED**: Line 1, commit 48379da
+  - [x] Set default model: `MODEL=${MODEL:-PokeeAI/pokee_research_7b}` - **VERIFIED**: Line 18, commit 48379da
+  - [x] Set default port: `PORT=${PORT:-9999}` - **VERIFIED**: Line 19, commit 48379da
+  - [x] Set quantization: `QUANTIZATION=${QUANTIZATION:-awq}` - **VERIFIED**: Line 20, commit 48379da
+  - [x] Add vLLM serve command with all parameters - **VERIFIED**: Lines 33-48, commit 48379da
+  - [x] Make executable: `chmod +x scripts/start-vllm.sh` - **VERIFIED**: Made executable, commit 48379da
 
 - [x] **8.1.3** Validate Dockerfile
   - [x] Check Dockerfile syntax (basic validation) - **VERIFIED**: Dockerfile syntax correct
@@ -583,16 +583,16 @@
 
 - [x] **8.2.1** Create Dockerfile for tool server
 
-  - [x] Use base image: `FROM python:3.10-slim` - **VERIFIED**: Line 17, commit e1bfc7e
-  - [x] Install system dependencies: curl, wget, Playwright dependencies - **VERIFIED**: Lines 22-47, commit e1bfc7e
-  - [x] Set working directory: `WORKDIR /app` - **VERIFIED**: Line 50, commit e1bfc7e
-  - [x] Copy requirements: `COPY requirements.txt .` - **VERIFIED**: Line 53, commit e1bfc7e
-  - [x] Install Python dependencies: `RUN pip install --no-cache-dir -r requirements.txt` - **VERIFIED**: Line 56, commit e1bfc7e
-  - [x] Install Playwright browsers: `RUN playwright install chromium` - **VERIFIED**: Lines 59-60, commit e1bfc7e
-  - [x] Copy application code: `COPY . .` - **VERIFIED**: Line 63, commit e1bfc7e
-  - [x] Expose port: `EXPOSE 8888` - **VERIFIED**: Line 71, commit e1bfc7e
-  - [x] Set entrypoint: `ENTRYPOINT ["python", "start_tool_server.py"]` - **VERIFIED**: Line 74, commit e1bfc7e
-  - [x] Set default command: `CMD ["--port", "8888", "--enable-cache"]` - **VERIFIED**: Line 77, commit e1bfc7e
+  - [x] Use base image: `FROM python:3.10-slim` - **VERIFIED**: Line 17, commit 48379da
+  - [x] Install system dependencies: curl, wget, Playwright dependencies - **VERIFIED**: Lines 22-47, commit 48379da
+  - [x] Set working directory: `WORKDIR /app` - **VERIFIED**: Line 50, commit 48379da
+  - [x] Copy requirements: `COPY requirements.txt .` - **VERIFIED**: Line 53, commit 48379da
+  - [x] Install Python dependencies: `RUN pip install --no-cache-dir -r requirements.txt` - **VERIFIED**: Line 56, commit 48379da
+  - [x] Install Playwright browsers: `RUN playwright install chromium` - **VERIFIED**: Lines 59-60, commit 48379da
+  - [x] Copy application code: `COPY . .` - **VERIFIED**: Line 63, commit 48379da
+  - [x] Expose port: `EXPOSE 8888` - **VERIFIED**: Line 71, commit 48379da
+  - [x] Set entrypoint: `ENTRYPOINT ["python", "start_tool_server.py"]` - **VERIFIED**: Line 74, commit 48379da
+  - [x] Set default command: `CMD ["--port", "8888", "--enable-cache"]` - **VERIFIED**: Line 77, commit 48379da
 
 - [x] **8.2.2** Validate Dockerfile
   - [x] Check syntax - **VERIFIED**: Dockerfile syntax correct
@@ -616,32 +616,32 @@
 
 - [x] **9.1.1** Create main docker-compose file
 
-  - [x] Set version: `version: "3.8"` - **VERIFIED**: Line 14, commit f8a9d2b
+  - [x] Set version: `version: "3.8"` - **VERIFIED**: Line 14, commit 48379da
   - [x] Define services:
-    - [x] `vllm-server` service - **VERIFIED**: Lines 17-48, commit f8a9d2b
-    - [x] `tool-server` service - **VERIFIED**: Lines 50-74, commit f8a9d2b
+    - [x] `vllm-server` service - **VERIFIED**: Lines 17-48, commit 48379da
+    - [x] `tool-server` service - **VERIFIED**: Lines 50-74, commit 48379da
     - [x] `agent` service (optional, if containerized) - **DEFERRED**: Agent runs via Gradio app, not containerized
 
 - [x] **9.1.2** Configure `vllm-server` service
 
-  - [x] Set build context: `build: context: . dockerfile: Dockerfile.vllm` - **VERIFIED**: Lines 18-20, commit f8a9d2b
-  - [x] Set container name: `container_name: pokee-vllm` - **VERIFIED**: Line 21, commit f8a9d2b
-  - [x] Configure GPU access: 2 GPUs with NVIDIA driver - **VERIFIED**: Lines 22-28, commit f8a9d2b
-  - [x] Expose port: `ports: - "9999:9999"` - **VERIFIED**: Line 29, commit f8a9d2b
-  - [x] Set environment variables: MODEL, PORT, QUANTIZATION, HF_TOKEN - **VERIFIED**: Lines 30-36, commit f8a9d2b
-  - [x] Set restart policy: `restart: unless-stopped` - **VERIFIED**: Line 38, commit f8a9d2b
-  - [x] Add healthcheck: curl to /health endpoint - **VERIFIED**: Lines 39-44, commit f8a9d2b
+  - [x] Set build context: `build: context: . dockerfile: Dockerfile.vllm` - **VERIFIED**: Lines 18-20, commit 48379da
+  - [x] Set container name: `container_name: pokee-vllm` - **VERIFIED**: Line 21, commit 48379da
+  - [x] Configure GPU access: 2 GPUs with NVIDIA driver - **VERIFIED**: Lines 22-28, commit 48379da
+  - [x] Expose port: `ports: - "9999:9999"` - **VERIFIED**: Line 29, commit 48379da
+  - [x] Set environment variables: MODEL, PORT, QUANTIZATION, HF_TOKEN - **VERIFIED**: Lines 30-36, commit 48379da
+  - [x] Set restart policy: `restart: unless-stopped` - **VERIFIED**: Line 38, commit 48379da
+  - [x] Add healthcheck: curl to /health endpoint - **VERIFIED**: Lines 39-44, commit 48379da
 
 - [x] **9.1.3** Configure `tool-server` service
 
-  - [x] Set build context: `build: context: . dockerfile: Dockerfile.tool-server` - **VERIFIED**: Lines 50-52, commit f8a9d2b
-  - [x] Set container name: `container_name: pokee-tool-server` - **VERIFIED**: Line 53, commit f8a9d2b
-  - [x] Expose port: `ports: - "8888:8888"` - **VERIFIED**: Line 54, commit f8a9d2b
-  - [x] Set environment variables: TAVILY_API_KEY, OPENAI_API_KEY, OPENAI_MODEL - **VERIFIED**: Lines 55-59, commit f8a9d2b
-  - [x] Set depends_on: `depends_on: - vllm-server` - **VERIFIED**: Lines 60-61, commit f8a9d2b
-  - [x] Set restart policy: `restart: unless-stopped` - **VERIFIED**: Line 62, commit f8a9d2b
-  - [x] Add volumes for cache: `volumes: - tool-server-cache:/app/cache` - **VERIFIED**: Lines 63-64, commit f8a9d2b
-  - [x] Add healthcheck: curl to /health endpoint - **VERIFIED**: Lines 65-70, commit f8a9d2b
+  - [x] Set build context: `build: context: . dockerfile: Dockerfile.tool-server` - **VERIFIED**: Lines 50-52, commit 48379da
+  - [x] Set container name: `container_name: pokee-tool-server` - **VERIFIED**: Line 53, commit 48379da
+  - [x] Expose port: `ports: - "8888:8888"` - **VERIFIED**: Line 54, commit 48379da
+  - [x] Set environment variables: TAVILY_API_KEY, OPENAI_API_KEY, OPENAI_MODEL - **VERIFIED**: Lines 55-59, commit 48379da
+  - [x] Set depends_on: `depends_on: - vllm-server` - **VERIFIED**: Lines 60-61, commit 48379da
+  - [x] Set restart policy: `restart: unless-stopped` - **VERIFIED**: Line 62, commit 48379da
+  - [x] Add volumes for cache: `volumes: - tool-server-cache:/app/cache` - **VERIFIED**: Lines 63-64, commit 48379da
+  - [x] Add healthcheck: curl to /health endpoint - **VERIFIED**: Lines 65-70, commit 48379da
 
 - [x] **9.1.4** Configure `agent` service (optional)
 
@@ -654,12 +654,12 @@
 
 - [x] **9.1.5** Add volumes section
 
-  - [x] Define cache volume: `cache: driver: local` - **VERIFIED**: Lines 76-80, commit f8a9d2b
-  - [x] Optionally add model cache volume for vLLM - **VERIFIED**: vllm-model-cache volume defined, commit f8a9d2b
+  - [x] Define cache volume: `cache: driver: local` - **VERIFIED**: Lines 76-80, commit 48379da
+  - [x] Optionally add model cache volume for vLLM - **VERIFIED**: vllm-model-cache volume defined, commit 48379da
 
 - [x] **9.1.6** Add networks section (if needed)
 
-  - [x] Create bridge network: `networks: pokee-network: driver: bridge` - **VERIFIED**: Lines 82-84, commit f8a9d2b
+  - [x] Create bridge network: `networks: pokee-network: driver: bridge` - **VERIFIED**: Lines 82-84, commit 48379da
 
 - [x] **9.1.7** Validate docker-compose.yml
   - [x] Check YAML syntax: `docker compose config` - **VERIFIED**: YAML syntax correct
