@@ -26,7 +26,6 @@ services:
         reservations:
           devices:
             - driver: nvidia
-              count: 1
               capabilities: [gpu]
               device_ids: ['0']  # Use GPU 0 only
     shm_size: '1gb'
