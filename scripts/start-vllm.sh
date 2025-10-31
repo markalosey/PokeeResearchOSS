@@ -57,10 +57,8 @@ VLLM_ARGS=(
     "--host" "0.0.0.0"
 )
 
-# Add HuggingFace token if provided
-if [ -n "$HF_TOKEN" ]; then
-    VLLM_ARGS+=("--token" "$HF_TOKEN")
-fi
+# Note: HuggingFace token is passed via HF_TOKEN environment variable
+# vLLM will automatically use it if set - no need to pass via command line
 
 # Start vLLM server
 echo "Starting vLLM server..."
