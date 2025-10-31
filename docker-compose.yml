@@ -37,8 +37,8 @@ services:
       - PORT=9999
       - QUANTIZATION=${QUANTIZATION:-none}
       - HF_TOKEN=${HUGGINGFACE_TOKEN}
-      - GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.35}
-      - MAX_MODEL_LEN=${MAX_MODEL_LEN:-8192}
+      - GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.30}
+      - MAX_MODEL_LEN=${MAX_MODEL_LEN:-4096}
     volumes:
       - vllm-model-cache:/root/.cache/huggingface
     restart: unless-stopped
