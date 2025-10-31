@@ -23,6 +23,8 @@ ray[default]>=2.8.0
 # ML/AI dependencies
 torch>=2.0.0
 transformers>=4.35.0
+bitsandbytes>=0.41.0  # For 4-bit quantization support
+autoawq>=0.1.9  # For AWQ quantization (optional, for creating quantized weights)
 
 # Configuration management
 omegaconf>=2.3.0

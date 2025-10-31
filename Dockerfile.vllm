@@ -42,6 +42,9 @@ RUN pip3 install --upgrade pip setuptools wheel
 # Note: vLLM requires specific versions for CUDA 12.2 compatibility
 RUN pip3 install --no-cache-dir vllm[all]>=0.2.0
 
+# Install AutoAWQ for creating quantized weights
+RUN pip3 install --no-cache-dir autoawq
+
 # Create app directory
 WORKDIR /app
 

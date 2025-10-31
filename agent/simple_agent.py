@@ -43,6 +43,8 @@ class SimpleDeepResearchAgent(BaseDeepResearchAgent):
         device: str = "cuda",
         max_turns: int = 10,
         max_tool_response_length: int = 32768,
+        use_quantization: bool = True,
+        quantization_bits: int = 4,
     ):
         """Initialize the agent.
 
@@ -52,6 +54,8 @@ class SimpleDeepResearchAgent(BaseDeepResearchAgent):
             device: Device to use
             max_turns: Maximum conversation turns
             max_tool_response_length: Max length for tool responses
+            use_quantization: Enable 4-bit quantization (reduces memory by ~4x)
+            quantization_bits: Quantization bits (4 or 8)
         """
         # Initialize base class
         super().__init__(
@@ -66,13 +70,17 @@ class SimpleDeepResearchAgent(BaseDeepResearchAgent):
 
             SimpleDeepResearchAgent._model_lock = threading.Lock()
 
+        # Store quantization settings
+        self.use_quantization = use_quantization
+        self.quantization_bits = quantization_bits
+        
         # Load model only once (singleton pattern) with thread safety
         with SimpleDeepResearchAgent._model_lock:
             if (
                 SimpleDeepResearchAgent._model is None
                 or SimpleDeepResearchAgent._model_path != model_path
             ):
-                self._load_model(model_path, device)
+                self._load_model(model_path, device, use_quantization, quantization_bits)
             elif SimpleDeepResearchAgent._device != device:
                 logger.warning(
                     f"Model already loaded on {SimpleDeepResearchAgent._device}, ignoring device={device}"
@@ -83,17 +91,50 @@ class SimpleDeepResearchAgent(BaseDeepResearchAgent):
         self.tokenizer = SimpleDeepResearchAgent._tokenizer
 
     @classmethod
-    def _load_model(cls, model_path: str, device: str):
+    def _load_model(cls, model_path: str, device: str, use_quantization: bool = True, quantization_bits: int = 4):
         """Load model and tokenizer (class method for singleton)."""
         logger.info(f"Loading model from {model_path}...")
         cls._tokenizer = AutoTokenizer.from_pretrained(
             model_path, trust_remote_code=True, use_fast=True
         )
+        
+        # Configure quantization if enabled
+        quantization_config = None
+        if use_quantization:
+            try:
+                from transformers import BitsAndBytesConfig
+                logger.info(f"Using {quantization_bits}-bit quantization (bitsandbytes)")
+                quantization_config = BitsAndBytesConfig(
+                    load_in_4bit=(quantization_bits == 4),
+                    load_in_8bit=(quantization_bits == 8),
+                    bnb_4bit_quant_type="nf4" if quantization_bits == 4 else None,
+                    bnb_4bit_use_double_quant=True,
+                    bnb_4bit_compute_dtype=torch.float16,
+                    bnb_8bit_compute_dtype=torch.float16,
+                )
+            except ImportError:
+                logger.warning(
+                    "bitsandbytes not installed. Install with: pip install bitsandbytes"
+                    "Falling back to full precision."
+                )
+                quantization_config = None
+        
+        # Load model with or without quantization
+        load_kwargs = {
+            "trust_remote_code": True,
+            "device_map": device,
+        }
+        
+        if quantization_config:
+            load_kwargs["quantization_config"] = quantization_config
+            load_kwargs["torch_dtype"] = torch.float16
+            logger.info("Quantization enabled - model will use ~4-5GB instead of ~14GB")
+        else:
+            load_kwargs["torch_dtype"] = torch.bfloat16
+        
         cls._model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            trust_remote_code=True,
-            torch_dtype=torch.bfloat16,
-            device_map=device,
+            **load_kwargs,
         )
         cls._model.eval()
         cls._model_path = model_path
@@ -122,12 +163,14 @@ class SimpleDeepResearchAgent(BaseDeepResearchAgent):
         )
 
         # Tokenize with padding for efficiency
+        # With quantization, we can use much larger context windows
+        max_context = 32768 if self.use_quantization else 8192
         inputs = self.tokenizer(
             prompt,
             return_tensors="pt",
             padding=False,  # No padding needed for single sequence
             truncation=True,  # Prevent OOM from overly long prompts
-            max_length=32768,  # Match model's max context
+            max_length=max_context,
         ).to(self.model.device)
 
         # Generate with optimizations

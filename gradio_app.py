@@ -397,6 +397,8 @@ def create_agent():
             tool_config_path=agent_config["tool_config_path"],
             device=agent_config["device"],
             max_turns=agent_config["max_turns"],
+            use_quantization=agent_config.get("use_quantization", True),  # Enable quantization by default
+            quantization_bits=agent_config.get("quantization_bits", 4),
         )
 
 
@@ -915,6 +917,8 @@ def main():
         "max_turns": 10,
         "tool_config_path": args.tool_config,
         "vllm_url": args.vllm_url if args.serving_mode == "vllm" else None,
+        "use_quantization": True,  # Enable quantization by default for memory efficiency
+        "quantization_bits": 4,  # 4-bit quantization reduces model to ~4-5GB
     }
 
     # Validate configuration

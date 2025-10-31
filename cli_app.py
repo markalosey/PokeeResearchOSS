@@ -104,6 +104,8 @@ def interactive_mode(
             tool_config_path=tool_config_path,
             device=device,
             max_turns=max_turns,
+            use_quantization=True,  # Enable quantization by default for memory efficiency
+            quantization_bits=4,  # 4-bit quantization reduces model to ~4-5GB
         )
 
     print("\n" + "=" * 80)
@@ -153,6 +155,8 @@ def single_query_mode(
             tool_config_path=tool_config_path,
             device=device,
             max_turns=max_turns,
+            use_quantization=True,  # Enable quantization by default for memory efficiency
+            quantization_bits=4,  # 4-bit quantization reduces model to ~4-5GB
         )
 
     start_time = time.time()
