@@ -35,17 +35,33 @@ except ImportError:
 try:
     from awq import AutoAWQForCausalLM
 except ImportError as e:
-    print(f"ERROR: Failed to import AutoAWQ: {e}")
-    print("\nTrying alternative import path...")
-    try:
-        from awq.models import AutoAWQForCausalLM
-    except ImportError as e2:
-        print(f"ERROR: Alternative import also failed: {e2}")
-        print("\nAutoAWQ may be deprecated. Check:")
-        print("1. Is autoawq installed? Run: pip install autoawq")
-        print("2. Try: pip install --upgrade autoawq")
-        print("3. Note: AutoAWQ has been adopted by vLLM Project's llm-compressor")
-        exit(1)
+    error_msg = str(e)
+    print(f"ERROR: Failed to import AutoAWQ: {error_msg}")
+    
+    # Check if it's a transformers version incompatibility
+    if "PytorchGELUTanh" in error_msg or "transformers.activations" in error_msg:
+        print("\n⚠️  TRANSFORMERS VERSION INCOMPATIBILITY DETECTED")
+        print("AutoAWQ requires Transformers 4.51.3, but you have a newer version.")
+        print("\nSolutions:")
+        print("1. Downgrade transformers: pip install transformers==4.51.3")
+        print("   (Note: This may break other parts of the codebase)")
+        print("\n2. Use BitsAndBytes instead (already implemented):")
+        print("   python gradio_app.py --serving-mode local")
+        print("   python cli_app.py --serving-mode local")
+        print("\n3. Use vLLM's llm-compressor (recommended long-term)")
+        print("   See: https://github.com/vllm-project/llm-compressor")
+    else:
+        print("\nTrying alternative import path...")
+        try:
+            from awq.models import AutoAWQForCausalLM
+        except ImportError as e2:
+            print(f"ERROR: Alternative import also failed: {e2}")
+            print("\nAutoAWQ may be deprecated. Check:")
+            print("1. Is autoawq installed? Run: pip install autoawq")
+            print("2. Try: pip install --upgrade autoawq")
+            print("3. Note: AutoAWQ has been adopted by vLLM Project's llm-compressor")
+    
+    exit(1)
 
 try:
     from transformers import AutoTokenizer
