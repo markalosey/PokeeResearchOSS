@@ -45,7 +45,6 @@ services:
       - NCCL_IB_DISABLE=1
       - NCCL_P2P_DISABLE=0
       - NCCL_DEBUG=WARN
-      - NCCL_SOCKET_IFNAME=lo
       - CUDA_VISIBLE_DEVICES=0,1
     volumes:
       - vllm-model-cache:/root/.cache/huggingface
