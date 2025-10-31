@@ -50,17 +50,17 @@ def _truncate_messages(messages: list[dict], max_tokens: int = 1800) -> list[dic
     """Truncate messages to fit within token limit.
     
     Preserves:
-    - System message (first message)
+    - System message (first message) - ALWAYS kept
+    - Most recent user message/question - ALWAYS kept (even if exceeds limit)
     - Most recent assistant responses
     - Most recent tool responses
-    - Most recent user messages
     
     Args:
         messages: List of message dicts with 'role' and 'content'
         max_tokens: Maximum tokens to keep (default: 1800 to leave room for generation)
         
     Returns:
-        Truncated message list
+        Truncated message list (always includes system + latest user message)
     """
     if not messages:
         return messages
@@ -69,20 +69,42 @@ def _truncate_messages(messages: list[dict], max_tokens: int = 1800) -> list[dic
     system_message = messages[0]
     remaining_messages = messages[1:]
     
-    # Estimate tokens for system message
-    system_tokens = _estimate_tokens(system_message.get("content", ""))
-    available_tokens = max_tokens - system_tokens
-    
-    if available_tokens <= 0:
-        # System message itself is too long, return just it
+    if not remaining_messages:
         return [system_message]
     
-    # Build truncated list from the end (most recent)
+    # Find the most recent user message (this is the current question)
+    # We need to keep this even if it's large
+    recent_user_msgs = [msg for msg in reversed(remaining_messages) if msg.get("role") == "user"]
+    most_recent_user_msg = recent_user_msgs[0] if recent_user_msgs else None
+    
+    # Estimate tokens for system message
+    system_tokens = _estimate_tokens(system_message.get("content", ""))
+    
+    # Estimate tokens for the most recent user message (the question)
+    user_question_tokens = _estimate_tokens(most_recent_user_msg.get("content", "")) if most_recent_user_msg else 0
+    
+    # Calculate available tokens for conversation history
+    # Reserve tokens for system + user question + some buffer
+    reserved_tokens = system_tokens + user_question_tokens + 100  # 100 token buffer
+    available_tokens = max_tokens - reserved_tokens
+    
+    if available_tokens <= 0:
+        # If system + user question itself is too large, return just those
+        # This shouldn't happen normally, but better than losing the question
+        if most_recent_user_msg:
+            return [system_message, most_recent_user_msg]
+        return [system_message]
+    
+    # Build truncated list from the end (most recent), excluding the most recent user message
+    # (we'll add it separately)
     truncated = []
     current_tokens = 0
     
-    # Process messages in reverse order (most recent first)
-    for msg in reversed(remaining_messages):
+    # Process messages in reverse order (most recent first), but skip the most recent user msg
+    # since we'll add it at the end
+    messages_to_process = [msg for msg in reversed(remaining_messages) if msg != most_recent_user_msg]
+    
+    for msg in messages_to_process:
         content = msg.get("content", "")
         msg_tokens = _estimate_tokens(content)
         
@@ -93,8 +115,11 @@ def _truncate_messages(messages: list[dict], max_tokens: int = 1800) -> list[dic
             # Can't fit this message, stop
             break
     
-    # Always include system message at the start
-    return [system_message] + truncated
+    # Always include system message at the start, then conversation history, then the current question
+    if most_recent_user_msg:
+        return [system_message] + truncated + [most_recent_user_msg]
+    else:
+        return [system_message] + truncated
 
 
 class VLLMDeepResearchAgent(BaseDeepResearchAgent):
