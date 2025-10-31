@@ -85,9 +85,36 @@ def extract_numeric_value(s, pattern):
     return float(match.group(1)) if match else None
 
 
+# Function to enable manual fan control
+def enable_manual_fan_control():
+    """Enable manual fan control mode on Dell server."""
+    try:
+        # Enable manual fan control: 0x30 0x30 0x01 0x00
+        result = subprocess.run(
+            ["ipmitool", "raw", "0x30", "0x30", "0x01", "0x00"],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=10,
+        )
+        logging.info("Manual fan control enabled")
+        return True
+    except Exception as e:
+        logging.warning(f"Failed to enable manual fan control (may already be enabled): {e}")
+        return False
+
+
 # Function to set fan speed
 def set_fan_speed(speed):
-    """Set fan speed via IPMI and verify it was set."""
+    """Set fan speed via IPMI and verify it was set.
+    
+    For Dell servers, we need to:
+    1. Enable manual fan control first
+    2. Set fan speed (0x30 0x30 0x02 0xff <hex_speed>)
+    """
+    # Ensure manual fan control is enabled
+    enable_manual_fan_control()
+    
     try:
         result = subprocess.run(
             ["ipmitool", "raw", "0x30", "0x30", "0x02", "0xff", f"0x{speed:02x}"],
@@ -101,6 +128,13 @@ def set_fan_speed(speed):
             logging.info(f"IPMI response: {result.stdout.strip()}")
         if result.stderr.strip():
             logging.warning(f"IPMI stderr: {result.stderr.strip()}")
+        
+        # Verify the command worked by checking if we got any error response
+        # Some Dell servers return "01" on success, "00" on failure
+        if result.stdout.strip() == "01":
+            logging.warning("IPMI returned error code 01 - command may have failed")
+            return False
+            
         return True
     except subprocess.CalledProcessError as e:
         logging.error(
@@ -176,7 +210,9 @@ def main():
     # On start, set fans to a safe speed while we get first readings
     current_fan_speed = 0x50  # 80% - safer default for GPU workloads
     if not set_fan_speed(current_fan_speed):
-        logging.error("CRITICAL: Failed to set initial fan speed! Check IPMI connection.")
+        logging.error(
+            "CRITICAL: Failed to set initial fan speed! Check IPMI connection."
+        )
 
     # Temperature smoothing to prevent rapid fluctuations
     temp_history = []
