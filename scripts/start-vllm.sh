@@ -23,7 +23,9 @@ MODEL=${MODEL:-PokeeAI/pokee_research_7b}
 PORT=${PORT:-9999}
 QUANTIZATION=${QUANTIZATION:-none}
 GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.60}
-MAX_MODEL_LEN=${MAX_MODEL_LEN:-2048}
+# Model supports up to 32k tokens, but we start conservatively to avoid OOM
+# Increase gradually: 4096 -> 8192 -> 16384 -> 32768 if memory allows
+MAX_MODEL_LEN=${MAX_MODEL_LEN:-8192}
 HF_TOKEN=${HF_TOKEN:-}
 
 # Display configuration

@@ -21,6 +21,7 @@ multiple agent instances.
 """
 
 import asyncio
+import os
 import threading
 
 import httpx
@@ -46,7 +47,7 @@ def _estimate_tokens(text: str) -> int:
     return len(text) // 4
 
 
-def _truncate_messages(messages: list[dict], max_tokens: int = 1500) -> list[dict]:
+def _truncate_messages(messages: list[dict], max_tokens: int = 6970) -> list[dict]:
     """Truncate messages to fit within token limit.
     
     Preserves:
@@ -57,7 +58,7 @@ def _truncate_messages(messages: list[dict], max_tokens: int = 1500) -> list[dic
     
     Args:
         messages: List of message dicts with 'role' and 'content'
-        max_tokens: Maximum tokens to keep (default: 1500 to leave room for generation with 2048 context)
+        max_tokens: Maximum tokens to keep (default: 6970 for 8192 context - 1024 gen - 200 buffer)
         
     Returns:
         Truncated message list (always includes system + latest user message + recent history)
@@ -154,7 +155,7 @@ class VLLMDeepResearchAgent(BaseDeepResearchAgent):
         tool_config_path: str = "config/tool_config/pokee_tool_config.yaml",
         max_turns: int = 10,
         max_tool_response_length: int = 32768,
-        max_tokens: int = 512,  # Reduced to leave more room for input history (2048 context - 512 gen = 1536 input)
+        max_tokens: int = 1024,  # Generation tokens (default context: 8192, adjust if MAX_MODEL_LEN changes)
         timeout: float = 300.0,
     ):
         """Initialize the VLLM agent.
@@ -165,7 +166,7 @@ class VLLMDeepResearchAgent(BaseDeepResearchAgent):
             tool_config_path: Path to tool configuration YAML file
             max_turns: Maximum conversation turns before giving up
             max_tool_response_length: Maximum length for tool response text
-            max_tokens: Maximum tokens to generate (default: 512, leaves more room for input history with 2048 context limit)
+            max_tokens: Maximum tokens to generate (default: 1024, adjust based on MAX_MODEL_LEN)
             timeout: HTTP request timeout in seconds (default: 300s = 5 minutes)
         """
         # Initialize base class (tools, regex patterns, etc.)
@@ -254,9 +255,13 @@ class VLLMDeepResearchAgent(BaseDeepResearchAgent):
             httpx.RequestError: If there's a network/connection error
             ValueError: If the response format is unexpected
         """
-        # Truncate messages to fit within context limit (2048 tokens)
-        # Reserve ~512 tokens for generation + buffer, so truncate to ~1500 input tokens
-        truncated_messages = _truncate_messages(messages, max_tokens=1500)
+        # Truncate messages to fit within context limit
+        # Default: 8192 context - 1024 generation - 200 buffer = ~6970 input tokens
+        # Adjust if MAX_MODEL_LEN environment variable is different
+        context_limit = int(os.getenv("MAX_MODEL_LEN", "8192"))
+        generation_tokens = self.max_tokens
+        input_tokens = context_limit - generation_tokens - 200  # Reserve buffer
+        truncated_messages = _truncate_messages(messages, max_tokens=input_tokens)
         
         if len(truncated_messages) < len(messages):
             preserved_assistant = sum(1 for m in truncated_messages if m.get("role") == "assistant")

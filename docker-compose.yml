@@ -38,7 +38,8 @@ services:
       - QUANTIZATION=${QUANTIZATION:-none}
       - HF_TOKEN=${HUGGINGFACE_TOKEN}
       - GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.60}
-      - MAX_MODEL_LEN=${MAX_MODEL_LEN:-2048}
+      # Model supports up to 32k tokens; increase gradually if memory allows
+      - MAX_MODEL_LEN=${MAX_MODEL_LEN:-8192}
       # NCCL environment variables for tensor parallelism
       - NCCL_IB_DISABLE=1
       - NCCL_P2P_DISABLE=0
