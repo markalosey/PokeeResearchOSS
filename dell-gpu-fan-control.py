@@ -155,10 +155,14 @@ def main():
 
     # Temperature smoothing to prevent rapid fluctuations
     temp_history = []
-    TEMP_HISTORY_SIZE = 3  # Average last 3 readings (15 seconds)
+    TEMP_HISTORY_SIZE = 5  # Average last 5 readings (25 seconds with 5s intervals)
     last_logged_change = time.time()
     critical_fan_speed_time = 0  # Track when we set critical fan speed
-    MIN_CRITICAL_FAN_DURATION = 60  # Keep fans at 90%+ for at least 60 seconds after critical temp
+    MIN_CRITICAL_FAN_DURATION = (
+        120  # Keep fans at 90%+ for at least 120 seconds (2 minutes) after critical temp
+    )
+    last_fan_change_time = 0  # Track when we last changed fan speed
+    MIN_TIME_BETWEEN_CHANGES = 15  # Minimum 15 seconds between ANY fan speed changes
 
     while True:
         try:
@@ -228,20 +232,29 @@ def main():
                     if critical_fan_speed_time == 0:
                         critical_fan_speed_time = current_time
                         logging.info(f"Critical fan speed activated at {fan_speed}%")
-                elif current_fan_speed >= 0x5A:  # Currently at 90%+ but trying to reduce
+                elif (
+                    current_fan_speed >= 0x5A
+                ):  # Currently at 90%+ but trying to reduce
                     # Only allow reduction if we've been at high speed for minimum duration
                     # AND temperature has dropped significantly
-                    if current_time - critical_fan_speed_time < MIN_CRITICAL_FAN_DURATION:
+                    if (
+                        current_time - critical_fan_speed_time
+                        < MIN_CRITICAL_FAN_DURATION
+                    ):
                         # Force maintain high fan speed
                         fan_speed = current_fan_speed
                         logging.warning(
                             f"Preventing fan speed reduction: maintaining {fan_speed}% for "
                             f"{MIN_CRITICAL_FAN_DURATION - (current_time - critical_fan_speed_time):.0f}s more"
                         )
-                    elif effective_gpu_temp < GPU_HIGH_TEMP_DOWN - 5:  # Temp dropped significantly below threshold
+                    elif (
+                        effective_gpu_temp < GPU_HIGH_TEMP_DOWN - 5
+                    ):  # Temp dropped significantly below threshold
                         # Allow reduction only if temp dropped well below threshold
                         critical_fan_speed_time = 0
-                        logging.info(f"Allowing fan speed reduction: temp dropped to {effective_gpu_temp:.1f}°C")
+                        logging.info(
+                            f"Allowing fan speed reduction: temp dropped to {effective_gpu_temp:.1f}°C"
+                        )
                     else:
                         # Keep high speed even if temp slightly dropped
                         fan_speed = current_fan_speed
@@ -282,18 +295,36 @@ def main():
 
             # Only update fan speed if it changed (reduce unnecessary IPMI calls)
             # BUT: Always update for critical temps to ensure fans are actually responding
+            # AND: Enforce minimum time between changes to prevent thrashing
+            time_since_last_change = time.time() - last_fan_change_time
+            
+            # Allow immediate changes only for critical temps or if enough time has passed
+            is_critical = (highest_gpu_temp is not None and highest_gpu_temp >= GPU_CRITICAL_TEMP) or fan_speed >= 0x5A
+            
             if fan_speed != current_fan_speed:
-                set_fan_speed(fan_speed)
-                current_fan_speed = fan_speed
-                logging.info(
-                    f"Fan speed command sent: {fan_speed}% (0x{fan_speed:02x})"
-                )
+                if is_critical or time_since_last_change >= MIN_TIME_BETWEEN_CHANGES:
+                    set_fan_speed(fan_speed)
+                    current_fan_speed = fan_speed
+                    last_fan_change_time = time.time()
+                    logging.info(
+                        f"Fan speed command sent: {fan_speed}% (0x{fan_speed:02x})"
+                    )
+                else:
+                    # Prevent change - too soon since last change
+                    logging.warning(
+                        f"BLOCKED fan speed change: {current_fan_speed}% → {fan_speed}% "
+                        f"(wait {MIN_TIME_BETWEEN_CHANGES - time_since_last_change:.0f}s more)"
+                    )
+                    fan_speed = current_fan_speed  # Keep current speed
             elif highest_gpu_temp is not None and highest_gpu_temp >= GPU_CRITICAL_TEMP:
                 # Force update for critical temps even if already set (safety check)
-                set_fan_speed(fan_speed)
-                logging.warning(
-                    f"CRITICAL TEMP: Re-applying fan speed {fan_speed}% (0x{fan_speed:02x}) for safety"
-                )
+                # But only if enough time has passed
+                if time_since_last_change >= 5:  # At least 5 seconds for critical re-applies
+                    set_fan_speed(fan_speed)
+                    last_fan_change_time = time.time()
+                    logging.warning(
+                        f"CRITICAL TEMP: Re-applying fan speed {fan_speed}% (0x{fan_speed:02x}) for safety"
+                    )
 
             # Check interval - faster for critical temps, slower for stable temps
             # Critical temps (>75°C) checked every 2 seconds, normal temps every 5 seconds
