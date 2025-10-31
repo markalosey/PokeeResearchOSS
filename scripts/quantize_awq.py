@@ -28,10 +28,29 @@ from pathlib import Path
 
 try:
     import torch
+except ImportError:
+    print("ERROR: PyTorch not installed. Install with: pip install torch")
+    exit(1)
+
+try:
     from awq import AutoAWQForCausalLM
+except ImportError as e:
+    print(f"ERROR: Failed to import AutoAWQ: {e}")
+    print("\nTrying alternative import path...")
+    try:
+        from awq.models import AutoAWQForCausalLM
+    except ImportError as e2:
+        print(f"ERROR: Alternative import also failed: {e2}")
+        print("\nAutoAWQ may be deprecated. Check:")
+        print("1. Is autoawq installed? Run: pip install autoawq")
+        print("2. Try: pip install --upgrade autoawq")
+        print("3. Note: AutoAWQ has been adopted by vLLM Project's llm-compressor")
+        exit(1)
+
+try:
     from transformers import AutoTokenizer
 except ImportError:
-    print("ERROR: AutoAWQ not installed. Install with: pip install autoawq")
+    print("ERROR: Transformers not installed. Install with: pip install transformers")
     exit(1)
 
 
