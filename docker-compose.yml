@@ -15,8 +15,6 @@
 # Docker Compose configuration for Pokee Research Agent
 # Deploys vLLM server and tool server with GPU support
 
-version: "3.8"
-
 services:
   vllm-server:
     build:
