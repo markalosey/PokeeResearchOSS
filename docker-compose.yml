@@ -30,6 +30,8 @@ services:
             - driver: nvidia
               count: 2
               capabilities: [gpu]
+    shm_size: '1gb'
+    ipc: host
     ports:
       - "9999:9999"
     environment:
