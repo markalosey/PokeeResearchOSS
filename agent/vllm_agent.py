@@ -47,7 +47,7 @@ def _estimate_tokens(text: str) -> int:
     return len(text) // 4
 
 
-def _truncate_messages(messages: list[dict], max_tokens: int = 6968) -> list[dict]:
+def _truncate_messages(messages: list[dict], max_tokens: int = 5176) -> list[dict]:
     """Truncate messages to fit within token limit.
     
     Preserves:
@@ -58,7 +58,7 @@ def _truncate_messages(messages: list[dict], max_tokens: int = 6968) -> list[dic
     
     Args:
         messages: List of message dicts with 'role' and 'content'
-        max_tokens: Maximum tokens to keep (default: 6968 for 8192 context - 1024 gen - 200 buffer)
+        max_tokens: Maximum tokens to keep (default: 5176 for 6144 context - 768 gen - 200 buffer)
         
     Returns:
         Truncated message list (always includes system + latest user message + recent history)
@@ -155,7 +155,7 @@ class VLLMDeepResearchAgent(BaseDeepResearchAgent):
         tool_config_path: str = "config/tool_config/pokee_tool_config.yaml",
         max_turns: int = 10,
         max_tool_response_length: int = 32768,
-        max_tokens: int = 1024,  # Generation tokens (default context: 8192, adjust if MAX_MODEL_LEN changes)
+        max_tokens: int = 768,  # Generation tokens (default context: 6144, adjust if MAX_MODEL_LEN changes)
         timeout: float = 300.0,
     ):
         """Initialize the VLLM agent.
@@ -166,7 +166,7 @@ class VLLMDeepResearchAgent(BaseDeepResearchAgent):
             tool_config_path: Path to tool configuration YAML file
             max_turns: Maximum conversation turns before giving up
             max_tool_response_length: Maximum length for tool response text
-            max_tokens: Maximum tokens to generate (default: 1024, adjust based on MAX_MODEL_LEN)
+            max_tokens: Maximum tokens to generate (default: 768, adjust based on MAX_MODEL_LEN)
             timeout: HTTP request timeout in seconds (default: 300s = 5 minutes)
         """
         # Initialize base class (tools, regex patterns, etc.)
@@ -256,9 +256,9 @@ class VLLMDeepResearchAgent(BaseDeepResearchAgent):
             ValueError: If the response format is unexpected
         """
         # Truncate messages to fit within context limit
-        # Default: 8192 context - 1024 generation - 200 buffer = ~6968 input tokens
+        # Default: 6144 context - 768 generation - 200 buffer = ~5176 input tokens
         # Adjust if MAX_MODEL_LEN environment variable is different
-        context_limit = int(os.getenv("MAX_MODEL_LEN", "8192"))
+        context_limit = int(os.getenv("MAX_MODEL_LEN", "6144"))
         generation_tokens = self.max_tokens
         input_tokens = context_limit - generation_tokens - 200  # Reserve buffer
         truncated_messages = _truncate_messages(messages, max_tokens=input_tokens)

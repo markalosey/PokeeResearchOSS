@@ -22,12 +22,13 @@ set -e
 MODEL=${MODEL:-PokeeAI/pokee_research_7b}
 PORT=${PORT:-9999}
 QUANTIZATION=${QUANTIZATION:-none}
-GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.75}
+GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.65}
 # Model supports up to 32k tokens, but limited by GPU memory
-# Model uses ~14.3 GB on single GPU, leaving ~1 GB for KV cache
-# With 16k context, KV cache needs too much memory
-# Reduce to 8192 for reasonable context while fitting in memory
-MAX_MODEL_LEN=${MAX_MODEL_LEN:-8192}
+# Model uses ~14.3 GB on single GPU, leaving ~1 GB free
+# Reduced GPU_MEMORY_UTILIZATION to 0.65 to leave more headroom for profiling
+# Reduced MAX_MODEL_LEN to 6144 to fit in memory
+# Can reduce further to 4096 if still OOM (still 2x improvement over original 2048)
+MAX_MODEL_LEN=${MAX_MODEL_LEN:-6144}
 TENSOR_PARALLEL_SIZE=${TENSOR_PARALLEL_SIZE:-1}
 HF_TOKEN=${HF_TOKEN:-}
 
