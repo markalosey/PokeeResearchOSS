@@ -87,18 +87,39 @@ def extract_numeric_value(s, pattern):
 
 # Function to set fan speed
 def set_fan_speed(speed):
+    """Set fan speed via IPMI and verify it was set."""
     try:
-        subprocess.run(
+        result = subprocess.run(
             ["ipmitool", "raw", "0x30", "0x30", "0x02", "0xff", f"0x{speed:02x}"],
+            capture_output=True,
+            text=True,
             check=True,
             timeout=10,
         )
-    except (
-        subprocess.CalledProcessError,
-        FileNotFoundError,
-        subprocess.TimeoutExpired,
-    ) as e:
-        logging.error(f"Failed to set fan speed: {e}")
+        # Log if there's any output (IPMI sometimes returns status)
+        if result.stdout.strip():
+            logging.info(f"IPMI response: {result.stdout.strip()}")
+        if result.stderr.strip():
+            logging.warning(f"IPMI stderr: {result.stderr.strip()}")
+        return True
+    except subprocess.CalledProcessError as e:
+        logging.error(
+            f"Failed to set fan speed {speed}% (0x{speed:02x}): IPMI command failed with code {e.returncode}"
+        )
+        if e.stderr:
+            logging.error(f"IPMI error output: {e.stderr}")
+        if e.stdout:
+            logging.error(f"IPMI output: {e.stdout}")
+        return False
+    except FileNotFoundError:
+        logging.error("ipmitool not found! Install ipmitool package.")
+        return False
+    except subprocess.TimeoutExpired:
+        logging.error(f"IPMI command timed out setting fan speed {speed}%")
+        return False
+    except Exception as e:
+        logging.error(f"Unexpected error setting fan speed: {e}")
+        return False
 
 
 # Function to determine fan speed based on GPU temperature (priority)
@@ -154,7 +175,8 @@ def main():
     logging.info("Fan control daemon started (GPU-optimized version with hysteresis).")
     # On start, set fans to a safe speed while we get first readings
     current_fan_speed = 0x50  # 80% - safer default for GPU workloads
-    set_fan_speed(current_fan_speed)
+    if not set_fan_speed(current_fan_speed):
+        logging.error("CRITICAL: Failed to set initial fan speed! Check IPMI connection.")
 
     # Temperature smoothing to prevent rapid fluctuations
     temp_history = []
@@ -163,7 +185,9 @@ def main():
     critical_fan_speed_time = 0  # Track when we set critical fan speed
     MIN_CRITICAL_FAN_DURATION = 120  # Keep fans at 90%+ for at least 120 seconds (2 minutes) after critical temp
     last_fan_change_time = 0  # Track when we last changed fan speed
-    MIN_TIME_BETWEEN_CHANGES = 30  # Minimum 30 seconds between ANY fan speed changes (increased from 15)
+    MIN_TIME_BETWEEN_CHANGES = (
+        30  # Minimum 30 seconds between ANY fan speed changes (increased from 15)
+    )
 
     while True:
         try:
@@ -306,12 +330,17 @@ def main():
 
             if fan_speed != current_fan_speed:
                 if is_critical or time_since_last_change >= MIN_TIME_BETWEEN_CHANGES:
-                    set_fan_speed(fan_speed)
-                    current_fan_speed = fan_speed
-                    last_fan_change_time = time.time()
-                    logging.info(
-                        f"Fan speed command sent: {fan_speed}% (0x{fan_speed:02x})"
-                    )
+                    success = set_fan_speed(fan_speed)
+                    if success:
+                        current_fan_speed = fan_speed
+                        last_fan_change_time = time.time()
+                        logging.info(
+                            f"Fan speed successfully set to: {fan_speed}% (0x{fan_speed:02x})"
+                        )
+                    else:
+                        logging.error(
+                            f"FAILED to set fan speed to {fan_speed}% (0x{fan_speed:02x}) - keeping current {current_fan_speed}%"
+                        )
                 else:
                     # Prevent change - too soon since last change
                     logging.warning(
@@ -329,8 +358,9 @@ def main():
 
         except Exception as e:
             logging.error(f"An error occurred in the main loop: {e}")
-            # In case of an unexpected error, set a safe fan speed and wait before retrying
-            set_fan_speed(0x50)  # 80% - safer for GPU workloads
+            # In case of an unexpected error, try to set a safe fan speed and wait before retrying
+            if not set_fan_speed(0x50):  # 80% - safer for GPU workloads
+                logging.error("Failed to set failsafe fan speed!")
             current_fan_speed = 0x50
             time.sleep(10)
 
