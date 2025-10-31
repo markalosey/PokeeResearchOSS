@@ -2,15 +2,16 @@
 
 ## Overview
 
-The PokeeResearch-7B model supports up to **32,768 tokens** of context, but we currently limit it to **8,192 tokens** (4x increase) to balance memory usage and performance on T4 GPUs.
+The PokeeResearch-7B model supports up to **32,768 tokens** of context, but we currently limit it to **4,096 tokens** (2x improvement from original 2048) to balance memory usage and performance on T4 GPUs with tensor parallelism.
 
 ## Current Configuration
 
-- **Default MAX_MODEL_LEN**: 8192 tokens
+- **Default MAX_MODEL_LEN**: 4096 tokens (2x improvement from original 2048)
 - **GPU Memory Utilization**: 0.60 (60%)
 - **Tensor Parallelism**: 2 GPUs
-- **Generation Tokens**: 1024
-- **Available Input Tokens**: ~6970 (8192 - 1024 - 200 buffer)
+- **Generation Tokens**: 768
+- **Available Input Tokens**: ~3128 (4096 - 768 - 200 buffer)
+- **KV Cache Memory Available**: ~0.17 GiB per GPU (with tensor parallelism)
 
 ## How to Increase Context Limit
 
@@ -19,12 +20,16 @@ The PokeeResearch-7B model supports up to **32,768 tokens** of context, but we c
 Set `MAX_MODEL_LEN` in your `.env` file:
 
 ```bash
-# For 16k context (2x increase)
-MAX_MODEL_LEN=16384
+# For 6k context (test if memory allows)
+MAX_MODEL_LEN=6144
+GPU_MEMORY_UTILIZATION=0.65
 
-# For 32k context (4x increase, maximum)
-MAX_MODEL_LEN=32768
+# For 8k context (may require GPU_MEMORY_UTILIZATION=0.70)
+MAX_MODEL_LEN=8192
+GPU_MEMORY_UTILIZATION=0.70
 ```
+
+**Note**: With tensor parallelism on T4 GPUs, each GPU only has ~0.17 GiB KV cache available. 8k tokens requires ~0.22 GiB, so you'll need to increase `GPU_MEMORY_UTILIZATION` to free up more memory.
 
 Then restart the vLLM server:
 
@@ -36,27 +41,27 @@ docker compose up -d
 
 ### Option 2: Gradual Increase Strategy
 
-If you hit OOM (Out of Memory) errors, increase gradually:
+If you want to try increasing beyond 4096, increase gradually:
 
-1. **Start with 4096** (2x current):
+1. **Current: 4096** (safe, works with GPU_MEMORY_UTILIZATION=0.60):
    ```bash
    MAX_MODEL_LEN=4096
+   GPU_MEMORY_UTILIZATION=0.60
    ```
 
-2. **If stable, try 8192** (current default):
+2. **Try 6144** (may require higher GPU_MEMORY_UTILIZATION):
+   ```bash
+   MAX_MODEL_LEN=6144
+   GPU_MEMORY_UTILIZATION=0.65
+   ```
+
+3. **Try 8192** (will likely require GPU_MEMORY_UTILIZATION=0.70):
    ```bash
    MAX_MODEL_LEN=8192
+   GPU_MEMORY_UTILIZATION=0.70
    ```
 
-3. **If stable, try 16384** (2x):
-   ```bash
-   MAX_MODEL_LEN=16384
-   ```
-
-4. **Maximum: 32768** (if memory allows):
-   ```bash
-   MAX_MODEL_LEN=32768
-   ```
+**Warning**: Higher context limits may cause OOM errors. Monitor GPU memory usage carefully.
 
 ### Option 3: Reduce GPU Memory Utilization
 
@@ -70,16 +75,18 @@ MAX_MODEL_LEN=16384
 
 ## Memory Requirements
 
-Context length affects KV (Key-Value) cache memory:
+Context length affects KV (Key-Value) cache memory. **With tensor parallelism on 2x T4 GPUs**, each GPU has limited KV cache memory:
 
-- **8k tokens**: ~2-3 GB per GPU
-- **16k tokens**: ~4-6 GB per GPU
-- **32k tokens**: ~8-12 GB per GPU
+- **4k tokens**: ~0.15 GiB per GPU ✅ (current, safe)
+- **6k tokens**: ~0.20 GiB per GPU ⚠️ (may work if you increase GPU_MEMORY_UTILIZATION)
+- **8k tokens**: ~0.22 GiB per GPU ❌ (requires more than available 0.17 GiB)
 
-With 2x T4 GPUs (15GB each):
-- **8k**: Safe ✅
-- **16k**: Should work ✅
-- **32k**: May require reduced GPU_MEMORY_UTILIZATION ⚠️
+**Important**: With tensor parallelism, the model is split across both GPUs, so each GPU only gets a portion of the total memory for KV cache.
+
+**To increase context limit beyond 4k**, you need to:
+1. Increase `GPU_MEMORY_UTILIZATION` (e.g., 0.65-0.70)
+2. Or use a single GPU (remove tensor parallelism) - but this may cause OOM
+3. Or use quantization (AWQ/GPTQ) to reduce model memory usage
 
 ## Monitoring
 
@@ -143,11 +150,13 @@ The agent automatically adapts to the context limit. If you see truncation warni
 
 ## Recommended Settings
 
-For **Dell R720 with 2x T4 GPUs**:
+For **Dell R720 with 2x T4 GPUs** (with tensor parallelism):
 
-- **Conservative**: `MAX_MODEL_LEN=8192` (current default)
-- **Balanced**: `MAX_MODEL_LEN=16384` (recommended)
-- **Maximum**: `MAX_MODEL_LEN=32768` (if memory allows)
+- **Conservative**: `MAX_MODEL_LEN=4096`, `GPU_MEMORY_UTILIZATION=0.60` ✅ (current default, stable)
+- **Moderate**: `MAX_MODEL_LEN=6144`, `GPU_MEMORY_UTILIZATION=0.65` ⚠️ (test carefully)
+- **Aggressive**: `MAX_MODEL_LEN=8192`, `GPU_MEMORY_UTILIZATION=0.70` ⚠️ (may cause OOM)
 
-Start with conservative, then increase if needed.
+**Note**: Due to tensor parallelism constraints, each GPU only has ~0.17 GiB KV cache available. Higher context limits require increasing `GPU_MEMORY_UTILIZATION` to free up more memory, which may cause OOM if you go too high.
+
+Start with conservative (4096), then increase gradually if needed.
 

@@ -38,8 +38,10 @@ services:
       - QUANTIZATION=${QUANTIZATION:-none}
       - HF_TOKEN=${HUGGINGFACE_TOKEN}
       - GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.60}
-      # Model supports up to 32k tokens; increase gradually if memory allows
-      - MAX_MODEL_LEN=${MAX_MODEL_LEN:-8192}
+      # Model supports up to 32k tokens, but limited by GPU memory on T4 GPUs
+      # With tensor parallelism, each GPU has ~0.17 GiB KV cache available
+      # Start with 4096, can increase to 6144 or 8192 if memory allows
+      - MAX_MODEL_LEN=${MAX_MODEL_LEN:-4096}
       # NCCL environment variables for tensor parallelism
       - NCCL_IB_DISABLE=1
       - NCCL_P2P_DISABLE=0

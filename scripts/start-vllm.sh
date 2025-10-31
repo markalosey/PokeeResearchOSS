@@ -23,9 +23,11 @@ MODEL=${MODEL:-PokeeAI/pokee_research_7b}
 PORT=${PORT:-9999}
 QUANTIZATION=${QUANTIZATION:-none}
 GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.60}
-# Model supports up to 32k tokens, but we start conservatively to avoid OOM
-# Increase gradually: 4096 -> 8192 -> 16384 -> 32768 if memory allows
-MAX_MODEL_LEN=${MAX_MODEL_LEN:-8192}
+# Model supports up to 32k tokens, but limited by GPU memory
+# With tensor parallelism on 2x T4 GPUs, each GPU has ~0.17 GiB KV cache available
+# Error suggests max_model_len should be ~6464, but we'll use 4096 for safety
+# Increase gradually: 4096 -> 6144 -> 8192 if memory allows
+MAX_MODEL_LEN=${MAX_MODEL_LEN:-4096}
 HF_TOKEN=${HF_TOKEN:-}
 
 # Display configuration
