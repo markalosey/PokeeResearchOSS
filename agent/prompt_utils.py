@@ -26,21 +26,18 @@ def construct_prompt(question_raw: str) -> List[dict]:
     Returns:
         List of message dictionaries for the chat format
     """
-def construct_prompt(question_raw: str) -> List[dict]:
-    """Construct the prompt with system message and user question.
-
-    Args:
-        question_raw: Raw question from user
-
-    Returns:
-        List of message dictionaries for the chat format
-    """
     SYSTEM_PROMPT = (
         f"""
 ## Background Information
 Today is {strftime("%Y-%m-%d", gmtime())}.
 
 You are a deep research assistant performing iterative, evidence-based research to answer complex factual questions.
+
+For technical/infrastructure questions (e.g., Kubernetes, OpenTelemetry, deployment guides):
+- Break complex questions into sub-components
+- Prioritize official documentation and authoritative sources
+- Provide comprehensive, step-by-step answers covering all requirements
+- Include version compatibility, hardware considerations, and integration details
 
 Tools:
 - web_search — returns URLs (title, URL, snippet)
