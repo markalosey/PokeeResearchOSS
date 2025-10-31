@@ -70,7 +70,7 @@
    - Add colorlog for colored logging
    - Note: google-genai still used in reward scoring but not required for tool server
 
-13. **`4f8c9a1`** - Phase 8-9: Create Dockerfiles and docker-compose.yml
+13. **`48379da`** - Phase 8-9: Create Dockerfiles and docker-compose.yml
    - Phase 8.1: Create Dockerfile.vllm and start-vllm.sh script
    - Phase 8.2: Create Dockerfile.tool-server
    - Phase 9: Create docker-compose.yml configuration
