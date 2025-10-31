@@ -234,6 +234,11 @@ class VLLMDeepResearchAgent(BaseDeepResearchAgent):
                 f"to fit context limit"
             )
         
+        # Log the user question being sent to vLLM
+        user_msgs = [msg for msg in truncated_messages if msg.get("role") == "user"]
+        if user_msgs:
+            logger.info(f"Sending to vLLM - User question: {user_msgs[0].get('content', '')[:200]}...")
+        
         # Prepare chat completions request
         request_data = {
             "model": self.model_name,
@@ -243,6 +248,10 @@ class VLLMDeepResearchAgent(BaseDeepResearchAgent):
             "max_tokens": self.max_tokens,
             "stream": False,  # Non-streaming for simpler handling
         }
+        
+        # Log request data (first message content)
+        if truncated_messages:
+            logger.debug(f"vLLM request - First message: {truncated_messages[0].get('content', '')[:200]}...")
 
         try:
             # Make HTTP request (cancellable)

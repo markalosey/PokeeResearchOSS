@@ -104,7 +104,10 @@ If CORRECT → process ends
     )
 
     INSTRUCTION_FOLLOWING = "##The research mode starts##"
-    question = question_raw + " " + INSTRUCTION_FOLLOWING
+    question = question_raw.strip() + " " + INSTRUCTION_FOLLOWING
+    
+    # Log the final question being sent
+    logger.debug(f"Final user question: {question[:300]}...")
 
     prompt = [
         {
@@ -116,5 +119,8 @@ If CORRECT → process ends
             "content": question,
         },
     ]
+    
+    # Log full prompt for debugging (first 500 chars)
+    logger.debug(f"Full prompt (first 500 chars): {str(prompt)[:500]}...")
 
     return prompt
