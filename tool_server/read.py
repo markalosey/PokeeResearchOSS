@@ -18,7 +18,7 @@ import json
 import os
 from typing import Any, Dict, List
 
-import aiohttp
+from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeoutError, Error as PlaywrightError
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
@@ -72,9 +72,9 @@ class ReadResult(BaseModel):
     error: str = ""
 
 
-async def jina_read(url: str, timeout: int = 30) -> ReadResult:
+async def playwright_read(url: str, timeout: int = 30) -> ReadResult:
     """
-    Read and extract content from a webpage using Jina Reader API.
+    Read and extract content from a webpage using Playwright browser automation.
 
     Args:
         url: The URL of the webpage to read
@@ -84,128 +84,137 @@ async def jina_read(url: str, timeout: int = 30) -> ReadResult:
         ReadResult containing extracted content, links, and metadata
 
     Example:
-        >>> result = await jina_read("https://example.com")
+        >>> result = await playwright_read("https://example.com")
         >>> if result.success:
         ...     print(result.content)
         ...     for item in result.url_items:
         ...         print(f"{item.title}: {item.url}")
     """
-    api_key = os.getenv("JINA_API_KEY")
-
-    if not api_key:
+    # Validate URL before processing
+    if not _is_valid_url(url):
         return ReadResult(
             success=False,
             content="",
+            url_items=[],
+            raw_response="Invalid URL",
             metadata={
-                "source": "jina_reader",
+                "source": "playwright",
                 "url": url,
-                "status": 401,
+                "status": 400,
                 "execution_time": 0.0,
                 "links_found": 0,
                 "relevant_links": 0,
             },
-            error="JINA_API_KEY environment variable not found",
+            error="Invalid URL format",
         )
-
-    reader_url = f"https://r.jina.ai/{url}"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Accept": "application/json",
-        "X-Return-Format": "text",
-        "X-With-Links-Summary": "true",
-    }
 
     loop = asyncio.get_running_loop()
     start_time = loop.time()
+    browser = None
 
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(
-                reader_url,
-                headers=headers,
-                timeout=aiohttp.ClientTimeout(total=timeout),
-            ) as response:
-                execution_time = loop.time() - start_time
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(
+                headless=True,
+                args=['--disable-gpu', '--disable-dev-shm-usage']
+            )
+            
+            context = await browser.new_context(
+                viewport={'width': 1920, 'height': 1080},
+                user_agent='Mozilla/5.0 (compatible; PokeeResearch/1.0)'
+            )
+            
+            page = await context.new_page()
+            
+            # Block unnecessary resources for faster loading
+            await page.route("**/*.{png,jpg,jpeg,gif,svg,css,woff,woff2}", lambda route: route.abort())
+            
+            # Navigate to URL with timeout
+            await page.goto(url, wait_until="networkidle", timeout=timeout * 1000)
+            
+            # Extract main content using JavaScript
+            text_content = await page.evaluate("""
+                () => {
+                    // Remove script and style elements
+                    const scripts = document.querySelectorAll('script, style');
+                    scripts.forEach(el => el.remove());
 
-                if response.status == 200:
-                    data = await response.json()
-                    raw_response = await response.text()
-
-                    content = data.get("data", {}).get("text", "")
-                    links_data = data.get("data", {}).get("links", {})
-
-                    # Process links into ReadURLItem objects
-                    url_items = []
-                    for link_title, link_url in links_data.items():
-                        if not link_url or not isinstance(link_url, str):
-                            continue
-
-                        link_url = link_url.strip()
-                        link_title = link_title.strip() if link_title else "No Title"
-
-                        if link_url and _is_valid_url(link_url):
-                            url_items.append(
-                                ReadURLItem(url=link_url, title=link_title)
-                            )
-
-                    metadata = {
-                        "source": "jina_reader",
-                        "url": url,
-                        "status": 200,
-                        "title": data.get("data", {}).get("title", ""),
-                        "description": data.get("data", {}).get("description", ""),
-                        "links_found": len(links_data),
-                        "relevant_links": len(url_items),
-                        "execution_time": execution_time,
-                    }
-
-                    if "usage" in data.get("data", {}):
-                        metadata["usage"] = data["data"]["usage"]
-                    if "usage" in data.get("meta", {}):
-                        metadata["meta_usage"] = data["meta"]["usage"]
-
-                    logger.info(
-                        f"Successfully read '{url}', found {len(url_items)} relevant links"
+                    // Get main content
+                    const main = document.querySelector('main, article, [role="main"]')
+                                || document.body;
+                    return main.innerText;
+                }
+            """)
+            
+            # Extract links from page
+            links = await page.evaluate("""
+                () => {
+                    return Array.from(document.querySelectorAll('a'))
+                        .map(a => ({
+                            url: a.href,
+                            title: a.textContent.trim() || a.innerText.trim() || 'No Title',
+                            text: a.innerText.trim()
+                        }))
+                        .filter(link => link.url && link.url.startsWith('http'));
+                }
+            """)
+            
+            # Get page title
+            page_title = await page.title()
+            
+            # Close browser
+            await browser.close()
+            browser = None
+            
+            execution_time = loop.time() - start_time
+            
+            # Convert links to ReadURLItem format
+            url_items = []
+            for link in links:
+                link_url = link.get("url", "").strip()
+                link_title = link.get("title", "No Title").strip()
+                
+                if link_url and _is_valid_url(link_url):
+                    url_items.append(
+                        ReadURLItem(url=link_url, title=link_title)
                     )
+            
+            metadata = {
+                "source": "playwright",
+                "url": url,
+                "status": 200,
+                "title": page_title,
+                "execution_time": execution_time,
+                "links_found": len(links),
+                "relevant_links": len(url_items),
+            }
+            
+            logger.info(
+                f"Successfully read '{url}', found {len(url_items)} relevant links"
+            )
+            
+            return ReadResult(
+                success=True,
+                content=text_content,
+                url_items=url_items,
+                raw_response=f"Page title: {page_title}",
+                metadata=metadata,
+            )
 
-                    return ReadResult(
-                        success=True,
-                        content=content,
-                        url_items=url_items,
-                        raw_response=raw_response[:500],
-                        metadata=metadata,
-                    )
-
-                else:
-                    error_text = await response.text()
-                    logger.warning(
-                        f"Read failed with HTTP {response.status}: {error_text[:100]}"
-                    )
-                    return ReadResult(
-                        success=False,
-                        content="",
-                        url_items=[],
-                        raw_response=error_text[:500],
-                        metadata={
-                            "source": "jina_reader",
-                            "url": url,
-                            "status": response.status,
-                            "execution_time": execution_time,
-                            "links_found": 0,
-                            "relevant_links": 0,
-                        },
-                        error=f"HTTP {response.status}: {error_text[:200]}",
-                    )
-
-    except asyncio.TimeoutError:
+    except PlaywrightTimeoutError:
         logger.warning(f"Read request timed out after {timeout}s")
+        if browser:
+            try:
+                await browser.close()
+            except Exception:
+                pass
         return ReadResult(
             success=False,
             content="",
             url_items=[],
             raw_response="Request timed out",
             metadata={
-                "source": "jina_reader",
+                "source": "playwright",
                 "url": url,
                 "status": 408,
                 "execution_time": loop.time() - start_time,
@@ -215,51 +224,43 @@ async def jina_read(url: str, timeout: int = 30) -> ReadResult:
             error=f"Request timed out after {timeout}s",
         )
 
-    except aiohttp.ClientError as e:
-        logger.warning(f"Client error during read: {str(e)}")
+    except PlaywrightError as e:
+        logger.warning(f"Playwright error during read: {str(e)}")
+        if browser:
+            try:
+                await browser.close()
+            except Exception:
+                pass
         return ReadResult(
             success=False,
             content="",
             url_items=[],
             raw_response=str(e)[:500],
             metadata={
-                "source": "jina_reader",
+                "source": "playwright",
                 "url": url,
-                "status": 502,
+                "status": 500,
                 "execution_time": loop.time() - start_time,
                 "links_found": 0,
                 "relevant_links": 0,
             },
-            error=f"Client error: {str(e)[:200]}",
-        )
-
-    except json.JSONDecodeError as e:
-        logger.warning(f"Failed to parse JSON response: {e}")
-        return ReadResult(
-            success=False,
-            content="",
-            url_items=[],
-            raw_response="Invalid JSON response",
-            metadata={
-                "source": "jina_reader",
-                "url": url,
-                "status": 502,
-                "execution_time": loop.time() - start_time,
-                "links_found": 0,
-                "relevant_links": 0,
-            },
-            error=f"Failed to parse JSON response: {str(e)[:200]}",
+            error=f"Playwright error: {str(e)[:200]}",
         )
 
     except Exception as e:
         logger.error(f"Unexpected error during read: {str(e)}")
+        if browser:
+            try:
+                await browser.close()
+            except Exception:
+                pass
         return ReadResult(
             success=False,
             content="",
             url_items=[],
             raw_response=str(e)[:500],
             metadata={
-                "source": "jina_reader",
+                "source": "playwright",
                 "url": url,
                 "status": 500,
                 "execution_time": loop.time() - start_time,
@@ -274,9 +275,9 @@ class WebReadAgent:
     """
     Agent for reading web content with LLM summarization and concurrency control.
 
-    This agent reads webpages, extracts content, and generates summaries using
-    an LLM. It includes retry logic for recoverable errors and falls back to
-    truncated content if LLM summarization fails.
+    This agent reads webpages using Playwright browser automation, extracts content,
+    and generates summaries using an LLM. It includes retry logic for recoverable
+    errors and falls back to truncated content if LLM summarization fails.
     """
 
     def __init__(self, config: Dict[str, Any]) -> None:
@@ -320,7 +321,7 @@ class WebReadAgent:
         Read a webpage and generate a summary based on the question.
 
         This method:
-        1. Reads webpage content using Jina API
+        1. Reads webpage content using Playwright browser automation
         2. Truncates content if too long
         3. Generates LLM summary with up to 3 retries for recoverable errors
         4. Falls back to truncated content if LLM fails
@@ -343,7 +344,7 @@ class WebReadAgent:
 
         try:
             async with self._semaphore:
-                result = await jina_read(url.strip(), timeout=self._timeout)
+                result = await playwright_read(url.strip(), timeout=self._timeout)
 
             if not result.success:
                 logger.warning(
@@ -417,7 +418,7 @@ class WebReadAgent:
                 url_items=[],
                 raw_response="",
                 metadata={
-                    "source": "jina_reader",
+                    "source": "playwright",
                     "url": url,
                     "status": 500,
                     "execution_time": 0.0,
