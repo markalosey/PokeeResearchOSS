@@ -25,7 +25,7 @@ from pydantic import BaseModel, Field
 from logging_utils import setup_colored_logger
 from tool_server.utils import (
     _is_valid_url,
-    get_genai_client,
+    get_openai_client,
     get_retry_delay,
     llm_summary,
 )
@@ -291,7 +291,7 @@ class WebReadAgent:
                 - max_summary_words: Max words for fallback summary (default: 2048)
                 - max_summary_retries: Max retries for LLM (default: 3)
         """
-        self.client = get_genai_client()
+        self.client = get_openai_client()
         self._timeout = config.get("timeout", 30)
         self._semaphore = asyncio.Semaphore(config.get("max_concurrent_requests", 500))
         self.max_content_words = config.get("max_content_words", 10000)
