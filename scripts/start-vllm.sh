@@ -23,11 +23,11 @@ MODEL=${MODEL:-PokeeAI/pokee_research_7b}
 PORT=${PORT:-9999}
 QUANTIZATION=${QUANTIZATION:-none}
 GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.75}
-# Model supports up to 32k tokens
-# WITHOUT tensor parallelism: Single GPU gets ALL KV cache memory (~8GB available)
-# This allows much larger context windows at the cost of slower inference
-# Prioritize context size over speed for research completion
-MAX_MODEL_LEN=${MAX_MODEL_LEN:-16384}
+# Model supports up to 32k tokens, but limited by GPU memory
+# Model uses ~14.3 GB on single GPU, leaving ~1 GB for KV cache
+# With 16k context, KV cache needs too much memory
+# Reduce to 8192 for reasonable context while fitting in memory
+MAX_MODEL_LEN=${MAX_MODEL_LEN:-8192}
 TENSOR_PARALLEL_SIZE=${TENSOR_PARALLEL_SIZE:-1}
 HF_TOKEN=${HF_TOKEN:-}
 
