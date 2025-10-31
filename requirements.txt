@@ -1,0 +1,43 @@
+# Core dependencies
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+
+# HTTP clients
+httpx>=0.25.0
+requests>=2.31.0
+
+# Web automation (replacing Jina)
+playwright>=1.40.0
+
+# LLM API clients (replacing Gemini)
+openai>=1.12.0
+
+# Web UI
+gradio>=4.0.0
+
+# Distributed execution
+ray[default]>=2.8.0
+
+# ML/AI dependencies
+torch>=2.0.0
+transformers>=4.35.0
+
+# Configuration management
+omegaconf>=2.3.0
+
+# Logging
+colorlog>=6.7.0
+
+# Data processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Utilities
+hydra-core>=1.3.0
+
+# Note: google-genai is still used in reward/reward_score.py for reward scoring
+# but is not required for the tool server or main agent functionality
+# google-genai>=0.2.0  # Uncomment if using reward scoring features
+
