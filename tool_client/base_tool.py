@@ -34,7 +34,14 @@
 from typing import Any, Optional
 from uuid import uuid4
 
-from verl.utils.rollout_trace import rollout_trace_op
+# Try to import rollout_trace_op from verl, fallback to no-op decorator if not available
+try:
+    from verl.utils.rollout_trace import rollout_trace_op
+except ImportError:
+    # If verl is not installed, create a no-op decorator
+    def rollout_trace_op(func):
+        """No-op decorator when verl is not available."""
+        return func
 
 from tool_client.schemas import OpenAIFunctionToolSchema, ToolResponse
 

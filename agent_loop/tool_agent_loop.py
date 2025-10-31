@@ -41,11 +41,37 @@ from uuid import uuid4
 import regex as re
 
 from agent_loop.agent_loop import AgentLoopBase, AgentLoopOutput, register
-from verl.experimental.agent_loop.tool_parser import FunctionCall
+
+# Try to import FunctionCall from verl, create fallback if not available
+try:
+    from verl.experimental.agent_loop.tool_parser import FunctionCall
+except ImportError:
+    # If verl is not installed, create a minimal FunctionCall class
+    from typing import Any, Optional
+    class FunctionCall:
+        """Minimal FunctionCall class when verl is not available."""
+        def __init__(self, name: str, arguments: dict[str, Any]):
+            self.name = name
+            self.arguments = arguments
+
 from tool_client.schemas import ToolResponse
 from tool_client.tool_registry import initialize_tools_from_config
-from verl.utils.profiler import simple_timer
-from verl.utils.rollout_trace import rollout_trace_op
+
+# Try to import from verl, fallback to no-op alternatives if not available
+try:
+    from verl.utils.profiler import simple_timer
+    from verl.utils.rollout_trace import rollout_trace_op
+except ImportError:
+    # If verl is not installed, create no-op alternatives
+    def simple_timer(name, metrics):
+        """No-op context manager when verl is not available."""
+        from contextlib import nullcontext
+        return nullcontext()
+    
+    def rollout_trace_op(func):
+        """No-op decorator when verl is not available."""
+        return func
+
 from functools import partial
 logger = logging.getLogger(__file__)
 logger.setLevel(os.getenv("VERL_LOGGING_LEVEL", "WARN"))
