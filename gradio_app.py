@@ -218,7 +218,7 @@ def get_tool_server_status() -> dict:
     return {"running": False, "message": "Tool server not responding"}
 
 
-def save_api_keys(tavily_key: str, gemini_key: str) -> str:
+def save_api_keys(tavily_key: str, openai_key: str) -> str:
     """Save API keys to environment variables.
 
     Validates that all keys are provided and stores them in the current process
@@ -226,14 +226,14 @@ def save_api_keys(tavily_key: str, gemini_key: str) -> str:
 
     Args:
         tavily_key: Tavily API key for web search functionality
-        gemini_key: Gemini API key for content summarization
+        openai_key: OpenAI API key for content summarization with GPT-5
 
     Returns:
         str: Status message for UI display (includes ✅/❌ emoji)
     """
     try:
         # Validate that all keys are provided
-        if not all([tavily_key, gemini_key]):
+        if not all([tavily_key, openai_key]):
             return "❌ Please provide all API keys"
 
         # Set environment variables
@@ -241,9 +241,9 @@ def save_api_keys(tavily_key: str, gemini_key: str) -> str:
             os.environ["TAVILY_API_KEY"] = tavily_key.strip()
             logger.info("✅ Tavily API key configured")
 
-        if gemini_key:
-            os.environ["GEMINI_API_KEY"] = gemini_key.strip()
-            logger.info("✅ Gemini API key configured")
+        if openai_key:
+            os.environ["OPENAI_API_KEY"] = openai_key.strip()
+            logger.info("✅ OpenAI API key configured")
 
         return "✅ API keys saved successfully! You can now start the tool server."
 
@@ -284,7 +284,7 @@ def start_tool_server_ui(port: int) -> tuple[str, str]:
     tool_server_port = port
 
     # Check if API keys are configured
-    required_keys = ["TAVILY_API_KEY", "GEMINI_API_KEY"]
+    required_keys = ["TAVILY_API_KEY", "OPENAI_API_KEY"]
     missing_keys = [key for key in required_keys if not os.environ.get(key)]
 
     if missing_keys:
@@ -603,7 +603,7 @@ def create_demo():
                 
                 ### Required API Keys:
                 - **Tavily API**: For web search functionality ([Get key](https://tavily.com))
-                - **Gemini API**: For read content summarization with Gemini 2.5 Flash Lite ([Get key](https://aistudio.google.com/app/apikey))
+                - **OpenAI API**: For read content summarization with GPT-5 ([Get key](https://platform.openai.com/api-keys))
                 
                 **Note:** Web content reading uses Playwright browser automation (no API key required).
                 """
@@ -620,11 +620,11 @@ def create_demo():
                         value=os.environ.get("TAVILY_API_KEY", ""),
                     )
 
-                    gemini_input = gr.Textbox(
-                        label="Gemini API Key",
-                        placeholder="Enter your Gemini API key...",
+                    openai_input = gr.Textbox(
+                        label="OpenAI API Key",
+                        placeholder="Enter your OpenAI API key...",
                         type="password",
-                        value=os.environ.get("GEMINI_API_KEY", ""),
+                        value=os.environ.get("OPENAI_API_KEY", ""),
                     )
 
                     save_keys_btn = gr.Button(
@@ -771,7 +771,7 @@ def create_demo():
         # Event handlers for Setup tab
         save_keys_btn.click(
             fn=save_api_keys,
-            inputs=[tavily_input, gemini_input],
+            inputs=[tavily_input, openai_input],
             outputs=[save_status],
         )
 
