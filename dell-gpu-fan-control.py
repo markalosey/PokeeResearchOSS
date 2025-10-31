@@ -5,6 +5,9 @@ import re
 import logging
 import logging.handlers
 import time
+import fcntl
+import os
+import sys
 
 # Setup logging to use syslog
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
@@ -158,11 +161,9 @@ def main():
     TEMP_HISTORY_SIZE = 5  # Average last 5 readings (25 seconds with 5s intervals)
     last_logged_change = time.time()
     critical_fan_speed_time = 0  # Track when we set critical fan speed
-    MIN_CRITICAL_FAN_DURATION = (
-        120  # Keep fans at 90%+ for at least 120 seconds (2 minutes) after critical temp
-    )
+    MIN_CRITICAL_FAN_DURATION = 120  # Keep fans at 90%+ for at least 120 seconds (2 minutes) after critical temp
     last_fan_change_time = 0  # Track when we last changed fan speed
-    MIN_TIME_BETWEEN_CHANGES = 15  # Minimum 15 seconds between ANY fan speed changes
+    MIN_TIME_BETWEEN_CHANGES = 30  # Minimum 30 seconds between ANY fan speed changes (increased from 15)
 
     while True:
         try:
@@ -297,10 +298,12 @@ def main():
             # BUT: Always update for critical temps to ensure fans are actually responding
             # AND: Enforce minimum time between changes to prevent thrashing
             time_since_last_change = time.time() - last_fan_change_time
-            
+
             # Allow immediate changes only for critical temps or if enough time has passed
-            is_critical = (highest_gpu_temp is not None and highest_gpu_temp >= GPU_CRITICAL_TEMP) or fan_speed >= 0x5A
-            
+            is_critical = (
+                highest_gpu_temp is not None and highest_gpu_temp >= GPU_CRITICAL_TEMP
+            ) or fan_speed >= 0x5A
+
             if fan_speed != current_fan_speed:
                 if is_critical or time_since_last_change >= MIN_TIME_BETWEEN_CHANGES:
                     set_fan_speed(fan_speed)
@@ -316,23 +319,12 @@ def main():
                         f"(wait {MIN_TIME_BETWEEN_CHANGES - time_since_last_change:.0f}s more)"
                     )
                     fan_speed = current_fan_speed  # Keep current speed
-            elif highest_gpu_temp is not None and highest_gpu_temp >= GPU_CRITICAL_TEMP:
-                # Force update for critical temps even if already set (safety check)
-                # But only if enough time has passed
-                if time_since_last_change >= 5:  # At least 5 seconds for critical re-applies
-                    set_fan_speed(fan_speed)
-                    last_fan_change_time = time.time()
-                    logging.warning(
-                        f"CRITICAL TEMP: Re-applying fan speed {fan_speed}% (0x{fan_speed:02x}) for safety"
-                    )
+            # Removed aggressive re-apply logic - it was causing thrashing by sending IPMI commands every 5 seconds
+            # The main logic above handles setting fan speeds correctly when they change
 
-            # Check interval - faster for critical temps, slower for stable temps
-            # Critical temps (>75°C) checked every 2 seconds, normal temps every 5 seconds
-            check_interval = 5  # Default
-            if highest_gpu_temp is not None and highest_gpu_temp >= GPU_HIGH_TEMP:
-                check_interval = 2  # Fast response for high temps
-            elif highest_cpu_temp is not None and highest_cpu_temp >= CPU_HIGH_TEMP:
-                check_interval = 3  # Medium response for high CPU temps
+            # Check interval - slower for stability (reduces IPMI calls)
+            # Even critical temps checked every 5 seconds to prevent thrashing
+            check_interval = 5  # Default - same for all temps
             time.sleep(check_interval)
 
         except Exception as e:
