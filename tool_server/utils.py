@@ -116,25 +116,22 @@ def get_openai_client():
 
 def extract_retry_delay_from_error(error_str: str) -> Optional[float]:
     """
-    Extract retry delay from Gemini API error response.
+    Extract retry delay from OpenAI API error response.
     Returns the delay in seconds if found, None otherwise.
     """
     try:
-        if "RESOURCE_EXHAUSTED" in error_str and "retryDelay" in error_str:
-            # check retry delay for gemini models
-            # Look for retryDelay pattern in the error message
-            retry_delay_match = re.search(
-                r"'retryDelay': '(\d+(?:\.\d+)?)s'", error_str
+        # OpenAI rate limit errors may include retry-after header information
+        # Check for common patterns
+        if "rate_limit_exceeded" in error_str.lower() or "429" in error_str:
+            # Look for retry-after pattern in error message
+            retry_after_match = re.search(
+                r'retry[_-]after["\']?\s*:\s*["\']?(\d+(?:\.\d+)?)', error_str, re.IGNORECASE
             )
-            if retry_delay_match:
-                return float(retry_delay_match.group(1))
-
-            # Alternative pattern matching
-            retry_delay_match = re.search(
-                r'retryDelay["\']?\s*:\s*["\']?(\d+(?:\.\d+)?)s', error_str
-            )
-            if retry_delay_match:
-                return float(retry_delay_match.group(1))
+            if retry_after_match:
+                return float(retry_after_match.group(1))
+            
+            # Default delay for rate limits: 2 seconds
+            return 2.0
 
     except Exception as e:
         logger.warning(f"Could not extract retry delay from error: {e}")
@@ -188,117 +185,42 @@ class LLMSummaryResult(BaseModel):
 
 async def llm_summary(
     user_prompt: str,
-    client: genai.Client,
+    client: AsyncOpenAI,
     timeout: float = 30.0,
     model: str = MODEL,
 ) -> LLMSummaryResult:
     """
-    Generate a summary using LLM with robust error handling.
+    Generate a summary using GPT-5 with robust error handling.
 
     Args:
-        user_prompt: The prompt to send to the LLM
-        client: The GenAI client instance
+        user_prompt: The prompt to send to the LLM (includes question and content)
+        client: The OpenAI AsyncOpenAI client instance
         timeout: Request timeout in seconds (default: 30.0)
-        model: Model to use for generation (default: MODEL constant)
+        model: Model to use for generation (default: MODEL constant, "gpt-5-pro")
 
     Returns:
         LLMSummaryResult with success status, text, and error information
 
     Recoverable errors (worth retrying):
-        - RESOURCE_EXHAUSTED (rate limiting)
+        - Rate limiting (429, rate_limit_exceeded)
         - Timeout errors
         - Transient network errors (503, 502, connection errors)
         - Internal server errors (500)
 
     Non-recoverable errors (not worth retrying):
-        - Content blocked by safety filters
         - Empty or invalid prompts
-        - Authentication errors (401, 403)
-        - Invalid request errors (400)
+        - Authentication errors (401, 403, invalid_api_key)
+        - Invalid request errors (400, context_length_exceeded)
         - Empty responses (likely a consistent issue)
     """
-
-    def _normalize_enum(value) -> str:
-        """Normalize enum values to uppercase string names."""
-        if value is None:
-            return ""
-        name = getattr(value, "name", None)
-        if name:
-            return name.upper()
-        value_str = str(value)
-        if "." in value_str:
-            value_str = value_str.split(".")[-1]
-        return value_str.upper()
-
-    def _detect_block(response) -> Optional[str]:
-        """
-        Detect if response was blocked by safety filters.
-
-        Returns:
-            Block reason string if blocked, None otherwise
-        """
-        # Check prompt-level blocking first
-        prompt_feedback = getattr(response, "prompt_feedback", None)
-        if prompt_feedback:
-            block_reason = _normalize_enum(
-                getattr(prompt_feedback, "block_reason", None)
-            )
-            if block_reason and block_reason not in {
-                "",
-                "BLOCK_REASON_UNSPECIFIED",
-                "UNSPECIFIED",
-            }:
-                logger.debug(f"Prompt blocked: {block_reason}")
-                return f"PROMPT_{block_reason}"
-
-            # Check prompt safety ratings
-            for rating in getattr(prompt_feedback, "safety_ratings", []) or []:
-                if getattr(rating, "blocked", False):
-                    category = _normalize_enum(getattr(rating, "category", None))
-                    logger.debug(f"Prompt safety block: {category}")
-                    return f"PROMPT_{category or 'SAFETY_BLOCKED'}"
-
-        # Check candidate-level blocking
-        for candidate in getattr(response, "candidates", []) or []:
-            finish_reason = _normalize_enum(getattr(candidate, "finish_reason", None))
-            if finish_reason in {"SAFETY", "RECITATION", "OTHER"}:
-                logger.debug(f"Candidate finish reason: {finish_reason}")
-                return finish_reason
-
-            # Check candidate safety ratings
-            for rating in getattr(candidate, "safety_ratings", []) or []:
-                if getattr(rating, "blocked", False):
-                    category = _normalize_enum(getattr(rating, "category", None))
-                    logger.debug(f"Candidate safety block: {category}")
-                    return category or "SAFETY_BLOCKED"
-
-        return None
-
-    def _extract_text_from_candidate(candidate) -> str:
-        """Extract text content from a candidate response."""
-        content = getattr(candidate, "content", None)
-        parts = getattr(content, "parts", None)
-        if parts is None and isinstance(content, list):
-            parts = content
-        if not parts:
-            return ""
-
-        chunks: list[str] = []
-        for part in parts:
-            part_text = getattr(part, "text", None)
-            if part_text is None and isinstance(part, dict):
-                part_text = part.get("text")
-            if part_text:
-                chunks.append(part_text)
-        return "\n".join(chunks).strip()
 
     def _is_recoverable_error(error_msg: str) -> bool:
         """Check if an error is recoverable by retrying."""
         error_lower = error_msg.lower()
 
-        # Recoverable patterns
+        # Recoverable patterns (OpenAI-specific)
         recoverable_patterns = [
-            "resource_exhausted",  # Rate limiting
+            "rate_limit_exceeded",  # Rate limiting
             "429",  # Too Many Requests
             "503",  # Service Unavailable
             "502",  # Bad Gateway
@@ -311,10 +233,9 @@ async def llm_summary(
             "transient",
             "unavailable",
             "overloaded",
-            "retrydelay",
         ]
 
-        # Non-recoverable patterns
+        # Non-recoverable patterns (OpenAI-specific)
         non_recoverable_patterns = [
             "401",  # Unauthorized
             "403",  # Forbidden
@@ -322,9 +243,9 @@ async def llm_summary(
             "invalid",
             "authentication",
             "permission",
-            "quota exceeded",  # Different from rate limit - permanent quota issue
-            "blocked",
-            "safety",
+            "invalid_api_key",
+            "context_length_exceeded",  # Token limit exceeded
+            "quota_exceeded",  # Permanent quota issue
         ]
 
         # Check non-recoverable first (higher priority)
@@ -360,41 +281,29 @@ async def llm_summary(
     try:
         # Make API request with timeout
         response = await asyncio.wait_for(
-            client.aio.models.generate_content(
+            client.chat.completions.create(
                 model=model,
-                contents=user_prompt,
-                config=GenerateContentConfig(
-                    response_modalities=["TEXT"],
-                    response_mime_type="text/plain",
-                    system_instruction=SYSTEM_INSTRUCTION,
-                    max_output_tokens=2048,
-                    temperature=0.1,
-                ),
+                messages=[
+                    {"role": "system", "content": SYSTEM_INSTRUCTION},
+                    {"role": "user", "content": user_prompt}
+                ],
+                max_tokens=2048,
+                temperature=0.1,
             ),
             timeout=timeout,
         )
 
-        # Check for safety blocks - NOT RECOVERABLE
-        blocked_reason = _detect_block(response)
-        if blocked_reason:
-            error_msg = f"Content blocked by safety filters: {blocked_reason}"
-            logger.info(error_msg)
+        # Extract text from response
+        if not response.choices or len(response.choices) == 0:
+            logger.warning("No choices in response")
             return LLMSummaryResult(
                 success=False,
                 text="",
-                error=error_msg,
+                error="No choices in response",
                 recoverable=False,
             )
 
-        # Try to extract text using standard method
-        text = getattr(response, "text", None)
-
-        # Fallback: manually extract from candidates
-        if text is None:
-            for candidate in getattr(response, "candidates", []) or []:
-                text = _extract_text_from_candidate(candidate)
-                if text:
-                    break
+        text = response.choices[0].message.content
 
         # Validate extracted text - NOT RECOVERABLE
         if text is None:
