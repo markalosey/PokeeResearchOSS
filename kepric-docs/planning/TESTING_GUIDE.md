@@ -9,10 +9,12 @@
 ## Prerequisites
 
 ✅ **All services must be running:**
+
 - vLLM server: `http://localhost:9999`
 - Tool server: `http://localhost:8888`
 
 **Verify services are running:**
+
 ```bash
 docker compose ps
 curl http://localhost:9999/v1/models
@@ -26,6 +28,7 @@ curl http://localhost:8888/health
 ### Quick Test (Single Query)
 
 **Test a simple question:**
+
 ```bash
 cd /datapool/PokeeResearchOSS
 python3 cli_app.py \
@@ -35,6 +38,7 @@ python3 cli_app.py \
 ```
 
 **Test a research question:**
+
 ```bash
 python3 cli_app.py \
   --serving-mode vllm \
@@ -43,6 +47,7 @@ python3 cli_app.py \
 ```
 
 **With verbose output:**
+
 ```bash
 python3 cli_app.py \
   --serving-mode vllm \
@@ -54,6 +59,7 @@ python3 cli_app.py \
 ### Interactive Mode
 
 **Start interactive CLI:**
+
 ```bash
 python3 cli_app.py \
   --serving-mode vllm \
@@ -62,11 +68,13 @@ python3 cli_app.py \
 ```
 
 **In interactive mode:**
+
 - Type your questions and press Enter
 - Type `exit` or `quit` to exit
 - Press `Ctrl+C` to interrupt
 
 **Example session:**
+
 ```
 You: What is Python programming used for?
 Agent: Researching...
@@ -83,6 +91,7 @@ python3 cli_app.py --help
 ```
 
 **Available options:**
+
 - `--serving-mode`: `vllm` (use vLLM server) or `local` (not recommended on server)
 - `--vllm-url`: vLLM server URL (default: `http://localhost:9999/v1`)
 - `--model-path`: Model name (default: `PokeeAI/pokee_research_7b`)
@@ -100,6 +109,7 @@ python3 cli_app.py --help
 ### Start Gradio App
 
 **Basic start (local access only):**
+
 ```bash
 cd /datapool/PokeeResearchOSS
 python3 gradio_app.py \
@@ -109,6 +119,7 @@ python3 gradio_app.py \
 ```
 
 **Start with public share link (for remote access):**
+
 ```bash
 python3 gradio_app.py \
   --serving-mode vllm \
@@ -118,6 +129,7 @@ python3 gradio_app.py \
 ```
 
 **Access the interface:**
+
 - **Local:** `http://localhost:7777`
 - **Network:** `http://<server-ip>:7777`
 - **Public share:** Use the share link provided in terminal
@@ -125,15 +137,18 @@ python3 gradio_app.py \
 ### Gradio Interface Features
 
 1. **API Key Configuration**
+
    - Tavily API Key
    - OpenAI API Key (for GPT-5)
    - Keys are saved to `.env` file
 
 2. **Tool Server Management**
+
    - Start/Stop tool server
    - View tool server status
 
 3. **Research Interface**
+
    - Enter your research question
    - Adjust parameters:
      - Temperature (0.0-1.0)
@@ -151,6 +166,7 @@ python3 gradio_app.py \
 ### Example Research Questions
 
 **Test queries:**
+
 1. "What are the latest developments in AI?"
 2. "Explain how transformers work in machine learning"
 3. "What is the current state of renewable energy?"
@@ -164,11 +180,13 @@ python3 gradio_app.py \
 ### Issue: CLI app can't connect to vLLM server
 
 **Check:**
+
 ```bash
 curl http://localhost:9999/v1/models
 ```
 
 **Fix:**
+
 - Ensure vLLM container is running: `docker compose ps`
 - Check vLLM logs: `docker compose logs vllm-server`
 - Verify URL format: `http://localhost:9999/v1` (note `/v1` suffix)
@@ -176,11 +194,13 @@ curl http://localhost:9999/v1/models
 ### Issue: CLI app can't connect to tool server
 
 **Check:**
+
 ```bash
 curl http://localhost:8888/health
 ```
 
 **Fix:**
+
 - Ensure tool server container is running: `docker compose ps`
 - Check tool server logs: `docker compose logs tool-server`
 - Verify API keys are set in `.env` file
@@ -188,11 +208,13 @@ curl http://localhost:8888/health
 ### Issue: Gradio app won't start
 
 **Check:**
+
 - Python dependencies installed: `pip list | grep gradio`
 - Port 7777 available: `netstat -tulpn | grep 7777`
 - Python version: `python3 --version` (should be 3.10+)
 
 **Fix:**
+
 - Install dependencies: `pip install gradio`
 - Use different port: `--port 7778`
 - Check Python version
@@ -200,6 +222,7 @@ curl http://localhost:8888/health
 ### Issue: "Module not found" errors
 
 **Fix:**
+
 ```bash
 cd /datapool/PokeeResearchOSS
 pip install -r requirements.txt
@@ -208,10 +231,12 @@ pip install -r requirements.txt
 ### Issue: Tool server not starting in Gradio
 
 **Check:**
+
 - Tool server port 8888 is already in use by Docker container
 - Gradio tries to start its own tool server
 
 **Fix:**
+
 - Use Docker tool server (already running)
 - In Gradio, click "Start Tool Server" only if needed
 - Better: Use Docker tool server (recommended)
@@ -219,11 +244,13 @@ pip install -r requirements.txt
 ### Issue: API keys not working
 
 **Check:**
+
 ```bash
 cat .env | grep -E "TAVILY|OPENAI"
 ```
 
 **Fix:**
+
 - Verify API keys are correct
 - Check API key permissions
 - Test keys directly:
@@ -238,11 +265,13 @@ cat .env | grep -E "TAVILY|OPENAI"
 ## Expected Performance
 
 ### CLI App
+
 - **Simple queries:** 5-15 seconds
 - **Research queries:** 30-90 seconds
 - **Tool calls:** 2-5 per query (typical)
 
 ### Gradio App
+
 - **Startup time:** 5-10 seconds
 - **Query response:** Same as CLI
 - **UI updates:** Real-time (streaming)
@@ -252,16 +281,19 @@ cat .env | grep -E "TAVILY|OPENAI"
 ## Testing Checklist
 
 - [ ] **CLI Single Query Test**
+
   - [ ] Simple question works
   - [ ] Research question works
   - [ ] Verbose mode shows tool calls
 
 - [ ] **CLI Interactive Mode**
+
   - [ ] Can enter questions
   - [ ] Gets responses
   - [ ] Can exit cleanly
 
 - [ ] **Gradio Interface**
+
   - [ ] Starts successfully
   - [ ] Can configure API keys
   - [ ] Can start research
@@ -279,11 +311,13 @@ cat .env | grep -E "TAVILY|OPENAI"
 ## Next Steps After Testing
 
 1. **Performance Optimization**
+
    - Monitor GPU utilization
    - Adjust max_turns if needed
    - Tune temperature/top_p
 
 2. **Production Readiness**
+
    - Set up reverse proxy (nginx)
    - Configure SSL/TLS
    - Set up monitoring
@@ -298,4 +332,3 @@ cat .env | grep -E "TAVILY|OPENAI"
 
 **Last Updated:** 2025-10-31  
 **Status:** Ready for Testing
-
