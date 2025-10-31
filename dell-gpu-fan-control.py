@@ -153,6 +153,11 @@ def main():
     current_fan_speed = 0x50  # 80% - safer default for GPU workloads
     set_fan_speed(current_fan_speed)
 
+    # Temperature smoothing to prevent rapid fluctuations
+    temp_history = []
+    TEMP_HISTORY_SIZE = 3  # Average last 3 readings (15 seconds)
+    last_logged_change = time.time()
+
     while True:
         try:
             # Get temperature info
@@ -172,10 +177,41 @@ def main():
             highest_cpu_temp = max(board_cpu_temps) if board_cpu_temps else None
             highest_gpu_temp = max(gpu_temps) if gpu_temps else None
 
-            # GPU temperatures take priority - they run hotter and need aggressive cooling
+            # Smooth GPU temperature to prevent rapid fluctuations
+            # BUT: Use raw temperature for critical temps or if we don't have enough history
             if highest_gpu_temp is not None:
-                # Use GPU-based fan speed with hysteresis, but ensure CPU doesn't override if it's critical
-                fan_speed = get_fan_speed_for_gpu(highest_gpu_temp, current_fan_speed)
+                # Critical temps bypass smoothing - respond immediately
+                if (
+                    highest_gpu_temp >= GPU_CRITICAL_TEMP
+                    or highest_gpu_temp >= GPU_HIGH_TEMP
+                ):
+                    # Use raw temperature for high/critical temps
+                    effective_gpu_temp = highest_gpu_temp
+                else:
+                    # Only use smoothing for non-critical temps
+                    temp_history.append(highest_gpu_temp)
+                    if len(temp_history) > TEMP_HISTORY_SIZE:
+                        temp_history.pop(0)
+                    # Use averaged temperature if we have enough history, otherwise use raw
+                    if len(temp_history) >= TEMP_HISTORY_SIZE:
+                        effective_gpu_temp = sum(temp_history) / len(temp_history)
+                    else:
+                        effective_gpu_temp = (
+                            highest_gpu_temp  # Use raw until we have history
+                        )
+            else:
+                effective_gpu_temp = None
+
+            # GPU temperatures take priority - they run hotter and need aggressive cooling
+            if effective_gpu_temp is not None:
+                # Use effective GPU temperature with hysteresis
+                # But bypass hysteresis for critical temps
+                if effective_gpu_temp >= GPU_CRITICAL_TEMP:
+                    fan_speed = 0x64  # Force 100% for critical temps
+                else:
+                    fan_speed = get_fan_speed_for_gpu(
+                        effective_gpu_temp, current_fan_speed
+                    )
 
                 # If CPU is also critical, ensure we're at max speed
                 if (
@@ -184,10 +220,22 @@ def main():
                 ):
                     fan_speed = max(fan_speed, get_fan_speed_for_cpu(highest_cpu_temp))
 
-                logging.info(
-                    f"GPU Temp: {highest_gpu_temp}°C, CPU Temp: {highest_cpu_temp if highest_cpu_temp else 'N/A'}°C, "
-                    f"Setting fan speed: {fan_speed}% (hex: 0x{fan_speed:02x})"
-                )
+                # Only log when fan speed actually changes or every 30 seconds
+                if fan_speed != current_fan_speed:
+                    logging.info(
+                        f"GPU Temp: {effective_gpu_temp:.1f}°C (raw: {highest_gpu_temp}°C), "
+                        f"CPU Temp: {highest_cpu_temp if highest_cpu_temp else 'N/A'}°C, "
+                        f"CHANGING fan speed: {current_fan_speed}% → {fan_speed}% (hex: 0x{fan_speed:02x})"
+                    )
+                    last_logged_change = time.time()
+                elif time.time() - last_logged_change >= 30:
+                    # Log status every 30 seconds even if no change
+                    logging.info(
+                        f"GPU Temp: {effective_gpu_temp:.1f}°C (raw: {highest_gpu_temp}°C), "
+                        f"CPU Temp: {highest_cpu_temp if highest_cpu_temp else 'N/A'}°C, "
+                        f"Maintaining fan speed: {fan_speed}% (hex: 0x{fan_speed:02x})"
+                    )
+                    last_logged_change = time.time()
             elif highest_cpu_temp is not None:
                 # Fallback to CPU-based control if no GPU temps available
                 fan_speed = get_fan_speed_for_cpu(highest_cpu_temp)
@@ -204,13 +252,26 @@ def main():
                 continue
 
             # Only update fan speed if it changed (reduce unnecessary IPMI calls)
+            # BUT: Always update for critical temps to ensure fans are actually responding
             if fan_speed != current_fan_speed:
                 set_fan_speed(fan_speed)
                 current_fan_speed = fan_speed
+                logging.info(f"Fan speed command sent: {fan_speed}% (0x{fan_speed:02x})")
+            elif highest_gpu_temp is not None and highest_gpu_temp >= GPU_CRITICAL_TEMP:
+                # Force update for critical temps even if already set (safety check)
+                set_fan_speed(fan_speed)
+                logging.warning(
+                    f"CRITICAL TEMP: Re-applying fan speed {fan_speed}% (0x{fan_speed:02x}) for safety"
+                )
 
-            # Faster check interval for GPU workloads (3 seconds instead of 5)
-            # This allows faster response to temperature changes
-            time.sleep(3)
+            # Check interval - faster for critical temps, slower for stable temps
+            # Critical temps (>75°C) checked every 2 seconds, normal temps every 5 seconds
+            check_interval = 5  # Default
+            if highest_gpu_temp is not None and highest_gpu_temp >= GPU_HIGH_TEMP:
+                check_interval = 2  # Fast response for high temps
+            elif highest_cpu_temp is not None and highest_cpu_temp >= CPU_HIGH_TEMP:
+                check_interval = 3  # Medium response for high CPU temps
+            time.sleep(check_interval)
 
         except Exception as e:
             logging.error(f"An error occurred in the main loop: {e}")
