@@ -159,6 +159,7 @@ async def tavily_search(query: str, timeout: int = 30, top_k: int = 10) -> Searc
                         "answer": data.get("answer", ""),
                         "query": data.get("query", query),
                         "response_time": data.get("response_time", 0.0),
+                        "scores": [item.get("score", 0.0) for item in data.get("results", [])],
                     },
                 )
 
@@ -167,6 +168,15 @@ async def tavily_search(query: str, timeout: int = 30, top_k: int = 10) -> Searc
                 logger.warning(
                     f"Search failed with HTTP {response.status_code}: {error_text[:100]}"
                 )
+                
+                # Handle Tavily-specific errors
+                if response.status_code == 429:
+                    error_msg = "Rate limit exceeded. Please try again later."
+                elif response.status_code == 401:
+                    error_msg = "Invalid API key."
+                else:
+                    error_msg = error_text[:200]
+                
                 return SearchResult(
                     query=query,
                     url_items=[],
@@ -177,7 +187,7 @@ async def tavily_search(query: str, timeout: int = 30, top_k: int = 10) -> Searc
                         "execution_time": execution_time,
                         "total_results": 0,
                     },
-                    error=f"HTTP {response.status_code}: {error_text[:200]}",
+                    error=f"HTTP {response.status_code}: {error_msg}",
                 )
 
     except httpx.TimeoutException:
