@@ -764,6 +764,7 @@ def create_demo():
                     ["What is the capital of France?"],
                     ["Who won the 2024 Nobel Prize in Physics?"],
                     ["What are the latest developments in quantum computing?"],
+                    ["Research and provide a comprehensive deployment guide for Kubernetes (k8s) and a complete CNCF OpenTelemetry observability stack on a Dell R720 server with 2x NVIDIA T4 GPUs, Debian 12, Docker, and existing services."],
                 ],
                 inputs=question_input,
             )
