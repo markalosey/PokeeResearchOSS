@@ -455,6 +455,7 @@ async def research_stream(
         return
 
     logger.info(f"Starting research for session {session_id[:8]}...")
+    logger.info(f"Research question: {question[:200]}...")  # Log first 200 chars of question
 
     agent = None
     thinking_log = ""

@@ -645,6 +645,8 @@ class BaseDeepResearchAgent(ABC):
         await self.initialize_tool_instances(question_raw)
         _max_turns = max_turns if max_turns is not None else self.max_turns
 
+        logger.info(f"Starting research for question: {question_raw[:200]}...")
+
         try:
             messages = construct_prompt(question_raw)
             current_mode = "research"
