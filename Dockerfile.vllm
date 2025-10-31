@@ -15,7 +15,7 @@
 # Dockerfile for vLLM server with NVIDIA GPU support
 # Supports CUDA 12.2 and NVIDIA T4 GPUs
 
-FROM nvidia/cuda:12.2.0-cudnn8-devel-ubuntu22.04
+FROM nvidia/cuda:12.2.0-devel-ubuntu22.04
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
