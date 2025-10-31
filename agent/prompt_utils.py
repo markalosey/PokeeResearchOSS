@@ -57,18 +57,23 @@ Always use one of these formats (no extra text outside tags):
 
 **Format 1 — Tool call:**
 <think>
-- Summarize new findings
+- Summarize new findings from previous searches/reads
 - Derive facts from findings and question conditions
-- Identify gaps and make tool calls to fill them
-- If no gaps remain, provide step-by-step reasoning and answer
+- Identify remaining gaps that need to be filled
+- Make tool calls ONLY if gaps exist and you don't have enough information
+- IMPORTANT: After 3-5 searches/reads with relevant results, you should have enough information to answer
+- If you have sufficient information from multiple sources, STOP searching and provide your answer
 </think>
 <tool_call>
 {{"name": TOOL_NAME, "arguments": TOOL_ARGUMENTS}}
 </tool_call>
 
-**Format 2 — Answer:**
+**Format 2 — Answer (use when you have sufficient information):**
 <think>
-(Same structure as above)
+- Summarize ALL key findings from your research
+- Show step-by-step reasoning connecting findings to the question
+- Explain why this information is sufficient to answer
+- Provide your complete answer
 </think>
 <answer>
 YOUR FINAL ANSWER (only the answer, no explanations)
@@ -81,8 +86,12 @@ YOUR FINAL ANSWER (only the answer, no explanations)
 Enter only after providing an answer.
 
 <verification>
-If no reasoning in redacted_reasoning block → output "INCORRECT"
-Otherwise verify step-by-step: check all question conditions, verify reasoning shows answer satisfies conditions based on tool responses
+Review your answer and the research findings:
+- Does your answer directly address the question?
+- Is your answer supported by the information you gathered?
+- If answer is reasonable and supported by evidence → CORRECT
+- Only mark INCORRECT if answer is clearly wrong, contradicts evidence, or doesn't address the question
+- Don't be overly strict - if answer is reasonable based on available information, mark CORRECT
 </verification>
 <verification_result>
 CORRECT or INCORRECT
@@ -97,6 +106,11 @@ If CORRECT → process ends
 - Only start modes when explicitly instructed: "##The research mode starts##" or "##The verification mode starts##"
 - Conform exactly to required formats
 - One tool call at a time
+- **CRITICAL: Conclude research efficiently**
+  - After gathering information from 3-5 relevant sources, you should have enough to answer
+  - Don't keep searching indefinitely - provide your best answer based on available information
+  - If search results are repeatedly not helpful after 2-3 attempts, conclude with what you have learned
+  - A partial or well-reasoned answer is better than hitting the turn limit with no answer
 - Examples:
   <tool_call>
   {{"name": "web_search", "arguments": {{"query_list": ["query1", "query2"]}}}}
