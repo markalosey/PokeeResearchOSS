@@ -46,21 +46,21 @@ def _estimate_tokens(text: str) -> int:
     return len(text) // 4
 
 
-def _truncate_messages(messages: list[dict], max_tokens: int = 1800) -> list[dict]:
+def _truncate_messages(messages: list[dict], max_tokens: int = 1500) -> list[dict]:
     """Truncate messages to fit within token limit.
     
     Preserves:
     - System message (first message) - ALWAYS kept
-    - Most recent user message/question - ALWAYS kept (even if exceeds limit)
-    - Most recent assistant responses
-    - Most recent tool responses
+    - Most recent user message/question - ALWAYS kept
+    - Last 2-3 complete turn cycles (assistant + tool response pairs)
+    - This ensures agent can see recent searches/results and make progress
     
     Args:
         messages: List of message dicts with 'role' and 'content'
-        max_tokens: Maximum tokens to keep (default: 1800 to leave room for generation)
+        max_tokens: Maximum tokens to keep (default: 1500 to leave room for generation with 2048 context)
         
     Returns:
-        Truncated message list (always includes system + latest user message)
+        Truncated message list (always includes system + latest user message + recent history)
     """
     if not messages:
         return messages
@@ -73,46 +73,51 @@ def _truncate_messages(messages: list[dict], max_tokens: int = 1800) -> list[dic
         return [system_message]
     
     # Find the most recent user message (this is the current question)
-    # We need to keep this even if it's large
     recent_user_msgs = [msg for msg in reversed(remaining_messages) if msg.get("role") == "user"]
     most_recent_user_msg = recent_user_msgs[0] if recent_user_msgs else None
     
-    # Estimate tokens for system message
+    # Estimate tokens for system message and user question
     system_tokens = _estimate_tokens(system_message.get("content", ""))
-    
-    # Estimate tokens for the most recent user message (the question)
     user_question_tokens = _estimate_tokens(most_recent_user_msg.get("content", "")) if most_recent_user_msg else 0
     
-    # Calculate available tokens for conversation history
-    # Reserve tokens for system + user question + some buffer
-    reserved_tokens = system_tokens + user_question_tokens + 100  # 100 token buffer
+    # Reserve tokens for system + user question + buffer
+    reserved_tokens = system_tokens + user_question_tokens + 200  # 200 token buffer
     available_tokens = max_tokens - reserved_tokens
     
     if available_tokens <= 0:
         # If system + user question itself is too large, return just those
-        # This shouldn't happen normally, but better than losing the question
         if most_recent_user_msg:
             return [system_message, most_recent_user_msg]
         return [system_message]
     
-    # Build truncated list from the end (most recent), excluding the most recent user message
-    # (we'll add it separately)
+    # Build truncated list preserving recent conversation history
+    # We need to keep tool responses so agent can see what it already searched
     truncated = []
     current_tokens = 0
     
     # Process messages in reverse order (most recent first), but skip the most recent user msg
-    # since we'll add it at the end
     messages_to_process = [msg for msg in reversed(remaining_messages) if msg != most_recent_user_msg]
     
+    # Keep at least the last complete turn: assistant response + tool response
+    # Then add more if space allows
     for msg in messages_to_process:
         content = msg.get("content", "")
         msg_tokens = _estimate_tokens(content)
         
+        # If we can fit this message, add it
         if current_tokens + msg_tokens <= available_tokens:
             truncated.insert(0, msg)  # Insert at beginning to maintain order
             current_tokens += msg_tokens
         else:
-            # Can't fit this message, stop
+            # Can't fit this message
+            # If we have at least one assistant message, that's good enough
+            # Otherwise try to truncate the content to fit at least something
+            if not any(m.get("role") == "assistant" for m in truncated):
+                # No assistant messages yet - try to fit at least a truncated version
+                available_chars = (available_tokens - current_tokens) * 4
+                if available_chars > 100 and msg.get("role") == "assistant":
+                    truncated_content = content[:available_chars] + "...[truncated]"
+                    truncated.insert(0, {"role": msg.get("role"), "content": truncated_content})
             break
     
     # Always include system message at the start, then conversation history, then the current question
@@ -149,7 +154,7 @@ class VLLMDeepResearchAgent(BaseDeepResearchAgent):
         tool_config_path: str = "config/tool_config/pokee_tool_config.yaml",
         max_turns: int = 10,
         max_tool_response_length: int = 32768,
-        max_tokens: int = 1024,  # Safe default for 2048 context length models
+        max_tokens: int = 512,  # Reduced to leave more room for input history (2048 context - 512 gen = 1536 input)
         timeout: float = 300.0,
     ):
         """Initialize the VLLM agent.
@@ -160,7 +165,7 @@ class VLLMDeepResearchAgent(BaseDeepResearchAgent):
             tool_config_path: Path to tool configuration YAML file
             max_turns: Maximum conversation turns before giving up
             max_tool_response_length: Maximum length for tool response text
-            max_tokens: Maximum tokens to generate (default: 1024, safe for 2048 context length)
+            max_tokens: Maximum tokens to generate (default: 512, leaves more room for input history with 2048 context limit)
             timeout: HTTP request timeout in seconds (default: 300s = 5 minutes)
         """
         # Initialize base class (tools, regex patterns, etc.)
@@ -250,12 +255,15 @@ class VLLMDeepResearchAgent(BaseDeepResearchAgent):
             ValueError: If the response format is unexpected
         """
         # Truncate messages to fit within context limit (2048 tokens)
-        # Reserve ~200 tokens for generation, so truncate to ~1800 input tokens
-        truncated_messages = _truncate_messages(messages, max_tokens=1800)
+        # Reserve ~512 tokens for generation + buffer, so truncate to ~1500 input tokens
+        truncated_messages = _truncate_messages(messages, max_tokens=1500)
         
         if len(truncated_messages) < len(messages):
+            preserved_assistant = sum(1 for m in truncated_messages if m.get("role") == "assistant")
+            preserved_tool = sum(1 for m in truncated_messages if m.get("role") == "tool")
             logger.warning(
                 f"Truncated messages from {len(messages)} to {len(truncated_messages)} "
+                f"(preserved {preserved_assistant} assistant + {preserved_tool} tool responses) "
                 f"to fit context limit"
             )
         
