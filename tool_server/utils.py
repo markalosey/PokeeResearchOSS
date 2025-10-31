@@ -21,8 +21,7 @@ import re
 from typing import Optional
 
 from dotenv import load_dotenv
-from google import genai
-from google.genai.types import GenerateContentConfig
+from openai import AsyncOpenAI
 from pydantic import BaseModel
 
 from logging_utils import setup_colored_logger
@@ -101,20 +100,18 @@ def _is_valid_url(url: str) -> bool:
 
 
 logger = setup_colored_logger(__name__, level=logging.INFO)
-_genai_client = None
+_openai_client = None
 
 
-def get_genai_client():
-    """Get or create the global GenAI client instance."""
-    global _genai_client
-    if _genai_client is None:
-        api_key = os.getenv("GEMINI_API_KEY")
-        if api_key:
-            _genai_client = genai.Client(api_key=api_key)
-        else:
-            _genai_client = genai.Client()
-    assert _genai_client is not None, "GenAI client initialization failed"
-    return _genai_client
+def get_openai_client():
+    """Get or create the global OpenAI client instance."""
+    global _openai_client
+    if _openai_client is None:
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise ValueError("OPENAI_API_KEY environment variable not found")
+        _openai_client = AsyncOpenAI(api_key=api_key)
+    return _openai_client
 
 
 def extract_retry_delay_from_error(error_str: str) -> Optional[float]:
@@ -177,7 +174,7 @@ Important note: Use the same language as the user's main question for the summar
 
 Now think and extract the information that could help answer the question."""
 
-MODEL = "gemini-2.5-flash-lite"
+MODEL = "gpt-5-pro"
 
 
 class LLMSummaryResult(BaseModel):
