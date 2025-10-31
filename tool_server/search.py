@@ -18,7 +18,7 @@ import json
 import os
 from typing import Any, Dict, List
 
-import aiohttp
+import httpx
 from dotenv import load_dotenv
 from pydantic import BaseModel
 
@@ -65,30 +65,30 @@ class SearchResult(BaseModel):
     error: str = ""
 
 
-def _extract_organic_from_serper_response(data: Dict[str, Any]) -> List[SearchURLItem]:
+def _extract_results_from_tavily_response(data: Dict[str, Any]) -> List[SearchURLItem]:
     """
-    Extract URLs from Serper API response.
+    Extract URLs from Tavily API response.
 
     Args:
-        data: The JSON response from Serper API
+        data: The JSON response from Tavily API
 
     Returns:
-        List of SearchURLItem objects from organic results
+        List of SearchURLItem objects from search results
     """
-    organic_results = data.get("organic", [])
+    results = data.get("results", [])
     return [
         SearchURLItem(
-            url=item.get("link", ""),
+            url=item.get("url", ""),
             title=item.get("title", "No Title"),
-            description=item.get("snippet", "No Description"),
+            description=item.get("content", "No Description")[:200] if item.get("content") else "No Description",
         )
-        for item in organic_results
+        for item in results
     ]
 
 
-async def serper_search(query: str, timeout: int = 30, top_k: int = 10) -> SearchResult:
+async def tavily_search(query: str, timeout: int = 30, top_k: int = 10) -> SearchResult:
     """
-    Perform a search using Serper API.
+    Perform a search using Tavily API.
 
     Args:
         query: The search query string
@@ -99,12 +99,12 @@ async def serper_search(query: str, timeout: int = 30, top_k: int = 10) -> Searc
         SearchResult containing search results and metadata
 
     Example:
-        >>> result = await serper_search("Python programming")
+        >>> result = await tavily_search("Python programming")
         >>> if result.success:
         ...     for item in result.url_items:
         ...         print(f"{item.title}: {item.url}")
     """
-    api_key = os.getenv("SERPER_API_KEY")
+    api_key = os.getenv("TAVILY_API_KEY")
 
     if not api_key:
         return SearchResult(
@@ -112,84 +112,82 @@ async def serper_search(query: str, timeout: int = 30, top_k: int = 10) -> Searc
             url_items=[],
             success=False,
             metadata={
-                "provider": "serper",
+                "provider": "tavily",
                 "status": 401,
                 "execution_time": 0.0,
                 "total_results": 0,
             },
-            error="SERPER_API_KEY environment variable not found",
+            error="TAVILY_API_KEY environment variable not found",
         )
 
-    url = "https://google.serper.dev/search"
-    payload = {"q": query, "location": "United States", "num": top_k}
-    headers = {
-        "X-API-KEY": api_key,
-        "Content-Type": "application/json",
+    url = "https://api.tavily.com/search"
+    payload = {
+        "api_key": api_key,
+        "query": query,
+        "search_depth": "basic",
+        "max_results": top_k,
     }
+    headers = {"Content-Type": "application/json"}
 
     loop = asyncio.get_running_loop()
     start_time = loop.time()
 
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                url,
-                json=payload,
-                headers=headers,
-                timeout=aiohttp.ClientTimeout(total=timeout),
-            ) as response:
-                execution_time = loop.time() - start_time
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(url, json=payload, headers=headers)
+            execution_time = loop.time() - start_time
 
-                if response.status == 200:
-                    data = await response.json()
-                    raw_response = await response.text()
-                    url_items = _extract_organic_from_serper_response(data)
+            if response.status_code == 200:
+                data = response.json()
+                raw_response = response.text
+                url_items = _extract_results_from_tavily_response(data)
 
-                    logger.info(
-                        f"Search successful for '{query}', found {len(url_items)} results"
-                    )
+                logger.info(
+                    f"Search successful for '{query}', found {len(url_items)} results"
+                )
 
-                    return SearchResult(
-                        query=query,
-                        url_items=url_items,
-                        raw_response=raw_response[:500],
-                        success=True,
-                        metadata={
-                            "provider": "serper",
-                            "status": 200,
-                            "execution_time": execution_time,
-                            "total_results": len(url_items),
-                            "searchParameters": data.get("searchParameters", {}),
-                            "credits": data.get("credits", 0),
-                        },
-                    )
+                return SearchResult(
+                    query=query,
+                    url_items=url_items,
+                    raw_response=raw_response[:500],
+                    success=True,
+                    metadata={
+                        "provider": "tavily",
+                        "status": 200,
+                        "execution_time": execution_time,
+                        "total_results": len(url_items),
+                        "answer": data.get("answer", ""),
+                        "query": data.get("query", query),
+                        "response_time": data.get("response_time", 0.0),
+                    },
+                )
 
-                else:
-                    error_text = await response.text()
-                    logger.warning(
-                        f"Search failed with HTTP {response.status}: {error_text[:100]}"
-                    )
-                    return SearchResult(
-                        query=query,
-                        url_items=[],
-                        success=False,
-                        metadata={
-                            "provider": "serper",
-                            "status": response.status,
-                            "execution_time": execution_time,
-                            "total_results": 0,
-                        },
-                        error=f"HTTP {response.status}: {error_text[:200]}",
-                    )
+            else:
+                error_text = response.text
+                logger.warning(
+                    f"Search failed with HTTP {response.status_code}: {error_text[:100]}"
+                )
+                return SearchResult(
+                    query=query,
+                    url_items=[],
+                    success=False,
+                    metadata={
+                        "provider": "tavily",
+                        "status": response.status_code,
+                        "execution_time": execution_time,
+                        "total_results": 0,
+                    },
+                    error=f"HTTP {response.status_code}: {error_text[:200]}",
+                )
 
-    except asyncio.TimeoutError:
+    except httpx.TimeoutException:
         logger.warning(f"Search request timed out after {timeout}s")
         return SearchResult(
             query=query,
             url_items=[],
             success=False,
             metadata={
-                "provider": "serper",
+                "provider": "tavily",
                 "status": 408,
                 "execution_time": loop.time() - start_time,
                 "total_results": 0,
@@ -197,14 +195,14 @@ async def serper_search(query: str, timeout: int = 30, top_k: int = 10) -> Searc
             error=f"Search request timed out after {timeout}s",
         )
 
-    except aiohttp.ClientError as e:
+    except httpx.RequestError as e:
         logger.warning(f"Client error during search: {str(e)}")
         return SearchResult(
             query=query,
             url_items=[],
             success=False,
             metadata={
-                "provider": "serper",
+                "provider": "tavily",
                 "status": 502,
                 "execution_time": loop.time() - start_time,
                 "total_results": 0,
@@ -219,7 +217,7 @@ async def serper_search(query: str, timeout: int = 30, top_k: int = 10) -> Searc
             url_items=[],
             success=False,
             metadata={
-                "provider": "serper",
+                "provider": "tavily",
                 "status": 502,
                 "execution_time": loop.time() - start_time,
                 "total_results": 0,
@@ -234,7 +232,7 @@ async def serper_search(query: str, timeout: int = 30, top_k: int = 10) -> Searc
             url_items=[],
             success=False,
             metadata={
-                "provider": "serper",
+                "provider": "tavily",
                 "status": 500,
                 "execution_time": loop.time() - start_time,
                 "total_results": 0,
@@ -248,7 +246,7 @@ class WebSearchAgent:
     Agent for performing web searches with concurrency control.
 
     This agent handles search queries with semaphore-based rate limiting
-    to prevent overwhelming the search API.
+    to prevent overwhelming the Tavily search API.
     """
 
     def __init__(self, config: Dict[str, Any]) -> None:
@@ -284,7 +282,7 @@ class WebSearchAgent:
 
         try:
             async with self._semaphore:
-                result = await serper_search(
+                result = await tavily_search(
                     query, timeout=self._timeout, top_k=self._top_k
                 )
 
@@ -306,7 +304,7 @@ class WebSearchAgent:
                 url_items=[],
                 success=False,
                 metadata={
-                    "provider": "serper",
+                    "provider": "tavily",
                     "status": 500,
                     "execution_time": 0.0,
                     "total_results": 0,
