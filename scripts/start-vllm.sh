@@ -22,12 +22,13 @@ set -e
 MODEL=${MODEL:-PokeeAI/pokee_research_7b}
 PORT=${PORT:-9999}
 QUANTIZATION=${QUANTIZATION:-none}
-GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.60}
-# Model supports up to 32k tokens, but limited by GPU memory
-# With tensor parallelism on 2x T4 GPUs, each GPU has ~0.17 GiB KV cache available
-# Error suggests max_model_len should be ~6464, but we'll use 4096 for safety
-# Increase gradually: 4096 -> 6144 -> 8192 if memory allows
-MAX_MODEL_LEN=${MAX_MODEL_LEN:-4096}
+GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.75}
+# Model supports up to 32k tokens
+# WITHOUT tensor parallelism: Single GPU gets ALL KV cache memory (~8GB available)
+# This allows much larger context windows at the cost of slower inference
+# Prioritize context size over speed for research completion
+MAX_MODEL_LEN=${MAX_MODEL_LEN:-16384}
+TENSOR_PARALLEL_SIZE=${TENSOR_PARALLEL_SIZE:-1}
 HF_TOKEN=${HF_TOKEN:-}
 
 # Display configuration
@@ -39,7 +40,7 @@ echo "Port: $PORT"
 echo "Quantization: $QUANTIZATION"
 echo "GPU Memory Utilization: $GPU_MEMORY_UTILIZATION"
 echo "Max Model Length: $MAX_MODEL_LEN"
-echo "Tensor Parallel Size: 2 (using both GPUs)"
+echo "Tensor Parallel Size: $TENSOR_PARALLEL_SIZE (single GPU for maximum context)"
 echo "=========================================="
 
 # Check GPU availability
@@ -60,7 +61,7 @@ VLLM_ARGS=(
     "--gpu-memory-utilization" "$GPU_MEMORY_UTILIZATION"
     "--host" "0.0.0.0"
     "--enforce-eager"
-    "--tensor-parallel-size" "2"
+    "--tensor-parallel-size" "$TENSOR_PARALLEL_SIZE"
 )
 
 # Add quantization only if specified and not empty
