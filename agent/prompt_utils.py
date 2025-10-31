@@ -16,6 +16,10 @@
 from time import gmtime, strftime
 from typing import List
 
+from logging_utils import setup_colored_logger
+
+logger = setup_colored_logger(__name__)
+
 
 def construct_prompt(question_raw: str) -> List[dict]:
     """Construct the prompt with system message and user question.
