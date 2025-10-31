@@ -47,7 +47,15 @@ from dotenv import load_dotenv
 from logging_utils import setup_colored_logger
 from tool_client.base_tool import BaseTool
 from tool_client.schemas import OpenAIFunctionToolSchema, ToolResponse
-from verl.utils.rollout_trace import rollout_trace_op
+
+# Try to import rollout_trace_op from verl, fallback to no-op decorator if not available
+try:
+    from verl.utils.rollout_trace import rollout_trace_op
+except ImportError:
+    # If verl is not installed, create a no-op decorator
+    def rollout_trace_op(func):
+        """No-op decorator when verl is not available."""
+        return func
 
 load_dotenv()
 
