@@ -865,6 +865,12 @@ def main():
         default=7777,
         help="Port to run the web interface on",
     )
+    parser.add_argument(
+        "--server-name",
+        type=str,
+        default="0.0.0.0",
+        help="Server name/address to bind to (0.0.0.0 for all interfaces, 127.0.0.1 for local only)",
+    )
 
     args = parser.parse_args()
 
@@ -900,7 +906,7 @@ def main():
     # Launch interface
     try:
         demo = create_demo()
-        demo.launch(share=args.share, server_port=args.port)
+        demo.launch(share=args.share, server_port=args.port, server_name=args.server_name)
     finally:
         if tool_server_proc is not None:
             cleanup_tool_server(tool_server_proc)
