@@ -306,15 +306,21 @@ class BaseDeepResearchAgent(ABC):
                 ]
         elif num_tool_calls > 1:
             # Multiple tool calls not allowed
+            logger.warning(f"Multiple tool calls detected ({num_tool_calls}), using first one only")
             output["tool_messages"] = [
                 {
                     "role": "user",
                     "content": "You are only allowed to generate one tool call but you generated more than one. Please regenerate the tool call.",
                 }
             ]
+            # Log all tool calls for debugging
+            for i, tc in enumerate(tool_call_matches):
+                logger.debug(f"Tool call {i+1}: {tc[:200]}...")
         else:
             # Exactly one tool call found
-            output["tool_calls"] = [tool_call_matches[0].strip()]
+            tool_call_str = tool_call_matches[0].strip()
+            logger.debug(f"Extracted tool call: {tool_call_str[:200]}...")
+            output["tool_calls"] = [tool_call_str]
 
         # Check for answer (overrides tool call behavior)
         answer_matches = self.answer_regex.findall(text)
@@ -656,6 +662,10 @@ class BaseDeepResearchAgent(ABC):
             while turn_count < _max_turns:
                 # Generate response
                 response = await self.generate(messages, temperature, top_p)
+                
+                # Log raw model response for debugging
+                logger.debug(f"Turn {turn_count + 1} - Raw model response: {response[:500]}...")
+                
                 messages.append({"role": "assistant", "content": response})
                 turn_count += 1
 
@@ -704,18 +714,23 @@ class BaseDeepResearchAgent(ABC):
                         tool_call = json.loads(tool_call_str)
                         tool_name = tool_call["name"]
                         tool_args = tool_call["arguments"]
+                        
+                        # Log tool call details for debugging
+                        logger.debug(f"Tool call - name: {tool_name}, args: {str(tool_args)[:200]}...")
 
                         # Yield tool call update with details
                         if tool_name == "web_search":
                             try:
                                 search_args = SearchArgs.model_validate(tool_args)
+                                logger.info(f"Search queries: {search_args.query_list}")
                                 yield {
                                     "type": "tool_call",
                                     "tool_name": "web_search",
                                     "think": think,
                                     "queries": search_args.query_list,
                                 }
-                            except Exception:
+                            except Exception as e:
+                                logger.warning(f"Failed to validate search args: {e}")
                                 # Don't expose validation errors to user
                                 pass
                         elif tool_name == "web_read":
