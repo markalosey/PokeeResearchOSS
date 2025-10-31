@@ -781,144 +781,77 @@
 #### Task 10.1: Validate Tavily Integration
 
 - [ ] **10.1.1** Test Tavily API connection
-
-  - [ ] Create test script: `tests/test_tavily.py`
-  - [ ] Test API key validation
-  - [ ] Test search query: `"test query"`
-  - [ ] Verify response structure matches expected format
-  - [ ] Verify error handling works
+  ```bash
+  python3 -c "from tavily import TavilyClient; client = TavilyClient(api_key='YOUR_KEY'); print(client.search('test'))"
+  ```
 
 - [ ] **10.1.2** Test `tavily_search()` function
-
-  - [ ] Import function: `from tool_server.search import tavily_search`
-  - [ ] Run async test: `asyncio.run(tavily_search("test query"))`
-  - [ ] Verify SearchResult structure
-  - [ ] Verify url_items are populated correctly
-  - [ ] Verify metadata contains tavily-specific fields
-
-- [ ] **10.1.3** Test `WebSearchAgent` with Tavily
-  - [ ] Create agent instance: `agent = WebSearchAgent(config={})`
-  - [ ] Run search: `result = await agent.search("test query")`
-  - [ ] Verify success=True
-  - [ ] Verify results are returned
+  ```bash
+  python3 -m py_compile tool_server/search.py
+  python3 -c "from tool_server.search import tavily_search, WebSearchAgent"
+  ```
 
 #### Task 10.2: Validate Playwright Integration
 
 - [ ] **10.2.1** Test Playwright installation
-
-  - [ ] Verify browser binaries: `playwright install chromium`
-  - [ ] Test basic browser launch: `python3 -c "from playwright.async_api import async_playwright; import asyncio; asyncio.run((lambda: async_playwright().__aenter__())())"`
-  - [ ] Verify headless mode works
+  ```bash
+  python3 -c "from playwright.async_api import async_playwright; print('OK')"
+  ```
 
 - [ ] **10.2.2** Test `playwright_read()` function
-
-  - [ ] Import function: `from tool_server.read import playwright_read`
-  - [ ] Test with simple URL: `result = await playwright_read("https://example.com")`
-  - [ ] Verify ReadResult structure
-  - [ ] Verify content is extracted
-  - [ ] Verify links are extracted
-  - [ ] Test error handling with invalid URL
-
-- [ ] **10.2.3** Test `WebReadAgent` with Playwright
-  - [ ] Create agent instance: `agent = WebReadAgent(config={})`
-  - [ ] Run read: `result = await agent.read("test question", "https://example.com")`
-  - [ ] Verify success=True
-  - [ ] Verify content and summary are populated
+  ```bash
+  python3 -m py_compile tool_server/read.py
+  python3 -c "from tool_server.read import playwright_read, WebReadAgent"
+  ```
 
 #### Task 10.3: Validate GPT-5 Integration
 
 - [ ] **10.3.1** Test OpenAI API connection
-
-  - [ ] Create test script: `tests/test_openai.py`
-  - [ ] Test API key validation
-  - [ ] Test model availability: `client.models.list()` and filter for `gpt-5*`
-  - [ ] Verify GPT-5 models are accessible
+  ```bash
+  python3 -c "from openai import AsyncOpenAI; import asyncio; client = AsyncOpenAI(api_key='KEY'); print([m.id for m in asyncio.run(client.models.list()).data if 'gpt-5' in m.id])"
+  ```
 
 - [ ] **10.3.2** Test `get_openai_client()` function
-
-  - [ ] Import function: `from tool_server.utils import get_openai_client`
-  - [ ] Get client: `client = get_openai_client()`
-  - [ ] Verify client is AsyncOpenAI instance
-  - [ ] Test client works: `await client.chat.completions.create(...)`
-
-- [ ] **10.3.3** Test `llm_summary()` function
-
-  - [ ] Import function: `from tool_server.utils import llm_summary`
-  - [ ] Get client: `client = get_openai_client()`
-  - [ ] Test summary: `result = await llm_summary("test prompt", client, model="gpt-5-pro")`
-  - [ ] Verify LLMSummaryResult structure
-  - [ ] Verify success=True
-  - [ ] Verify text is populated
-  - [ ] Test error handling with invalid API key
-  - [ ] Test error handling with timeout
-
-- [ ] **10.3.4** Test GPT-5 model variants
-  - [ ] Test `gpt-5`: Verify it works
-  - [ ] Test `gpt-5-pro`: Verify it works (recommended)
-  - [ ] Test `gpt-5-mini`: Verify it works (cost-efficient option)
-  - [ ] Document any differences in response quality/speed
+  ```bash
+  python3 -m py_compile tool_server/utils.py
+  python3 -c "from tool_server.utils import get_openai_client, llm_summary"
+  ```
 
 #### Task 10.4: End-to-End Integration Testing
 
-- [ ] **10.4.1** Test tool server endpoints
-
-  - [ ] Start tool server: `python start_tool_server.py --port 8888`
-  - [ ] Test `/search` endpoint: `curl -X POST http://localhost:8888/search -H "Content-Type: application/json" -d '{"query": "test"}'`
-  - [ ] Verify response structure
-  - [ ] Test `/read` endpoint: `curl -X POST http://localhost:8888/read -H "Content-Type: application/json" -d '{"url": "https://example.com", "question": "test"}'`
-  - [ ] Verify response structure
-
-- [ ] **10.4.2** Test agent with new tools
-  - [ ] Start vLLM server (or use existing)
-  - [ ] Configure agent to use new tool server
-  - [ ] Run agent with test query
-  - [ ] Verify search tool works
-  - [ ] Verify read tool works
-  - [ ] Verify summarization works
+- [ ] **10.4.1** Test tool server endpoints (after deployment)
+  ```bash
+  curl -X POST http://localhost:8888/search -H "Content-Type: application/json" -d '{"query": "test"}'
+  curl -X POST http://localhost:8888/read -H "Content-Type: application/json" -d '{"url": "https://example.com", "question": "test"}'
+  ```
 
 ### Phase 11: Docker Validation
 
 #### Task 11.1: Build Docker Images
 
 - [ ] **11.1.1** Build vLLM image
-
-  - [ ] Run: `docker build -f Dockerfile.vllm -t pokee-vllm:latest .`
-  - [ ] Verify build succeeds
-  - [ ] Check image size (should be reasonable)
-  - [ ] Verify image contains vLLM: `docker run --rm pokee-vllm:latest vllm --help`
+  ```bash
+  docker compose build vllm-server
+  ```
 
 - [ ] **11.1.2** Build tool-server image
-
-  - [ ] Run: `docker build -f Dockerfile.tool-server -t pokee-tool-server:latest .`
-  - [ ] Verify build succeeds
-  - [ ] Check image size
-  - [ ] Verify Playwright browsers are installed: `docker run --rm pokee-tool-server:latest playwright --version`
-
-- [ ] **11.1.3** Build agent image (if applicable)
-  - [ ] Run: `docker build -f Dockerfile.agent -t pokee-agent:latest .`
-  - [ ] Verify build succeeds
+  ```bash
+  docker compose build tool-server
+  ```
 
 #### Task 11.2: Test Docker Compose
 
 - [ ] **11.2.1** Validate docker-compose configuration
+  ```bash
+  docker compose config
+  ```
 
-  - [ ] Run: `docker compose config`
-  - [ ] Verify no syntax errors
-  - [ ] Verify all services are defined correctly
-
-- [ ] **11.2.2** Start services with docker-compose
-
-  - [ ] Run: `docker compose up -d`
-  - [ ] Verify all containers start: `docker compose ps`
-  - [ ] Check logs: `docker compose logs`
-  - [ ] Verify no startup errors
-
-- [ ] **11.2.3** Test service connectivity
-
-  - [ ] Test vLLM health: `curl http://localhost:9999/health` (if endpoint exists)
-  - [ ] Test tool-server health: `curl http://localhost:8888/health` (if endpoint exists)
-  - [ ] Test tool-server search: `curl -X POST http://localhost:8888/search -H "Content-Type: application/json" -d '{"query": "test"}'`
-  - [ ] Test tool-server read: `curl -X POST http://localhost:8888/read -H "Content-Type: application/json" -d '{"url": "https://example.com", "question": "test"}'`
+- [ ] **11.2.2** Start services and verify
+  ```bash
+  docker compose up -d
+  docker compose ps
+  docker compose logs -f
+  ```
 
 - [ ] **11.2.4** Verify GPU access in containers
 

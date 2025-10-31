@@ -445,6 +445,25 @@ git commit -m "Descriptive commit message"
 git push origin migration/tavily-playwright-gpt5
 ```
 
+### Validation Commands
+
+```bash
+# Syntax check
+python3 -m py_compile tool_server/search.py tool_server/read.py tool_server/utils.py
+
+# Import check
+python3 -c "from tool_server.search import tavily_search; from tool_server.read import playwright_read; from tool_server.utils import get_openai_client"
+
+# Docker compose validation
+docker compose config
+
+# Test Tavily API (requires API key)
+python3 -c "from tavily import TavilyClient; client = TavilyClient(api_key='KEY'); print(client.search('test'))"
+
+# Test OpenAI/GPT-5 (requires API key)
+python3 -c "from openai import AsyncOpenAI; import asyncio; client = AsyncOpenAI(api_key='KEY'); print([m.id for m in asyncio.run(client.models.list()).data if 'gpt-5' in m.id])"
+```
+
 ### Server Deployment
 
 ```bash
@@ -462,6 +481,10 @@ nano .env  # Add API keys
 docker compose build
 docker compose up -d
 docker compose logs -f
+
+# Test endpoints
+curl -X POST http://localhost:8888/search -H "Content-Type: application/json" -d '{"query": "test"}'
+curl -X POST http://localhost:8888/read -H "Content-Type: application/json" -d '{"url": "https://example.com", "question": "test"}'
 ```
 
 ---
