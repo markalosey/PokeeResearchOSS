@@ -43,12 +43,32 @@
    - Updated docstrings to reference Playwright instead of Jina
    - Removed JINA_API_KEY dependency
 
-6. **`4eaea0b`** - Remove Jina API key references from gradio_app.py
-   - Updated save_api_keys() to remove jina_key parameter
-   - Removed JINA_API_KEY from required_keys list
-   - Removed Jina AI API Key input field from UI
-   - Updated documentation to note Playwright doesn't need API key
-   - Updated save_keys_btn click handler
+7. **`4024b29`** - Phase 5.1: Update imports and client function in tool_server/utils.py
+   - Replace Gemini imports with OpenAI imports
+   - Remove: from google import genai, GenerateContentConfig
+   - Add: from openai import AsyncOpenAI
+   - Replace get_genai_client() with get_openai_client()
+   - Update MODEL constant: gemini-2.5-flash-lite -> gpt-5-pro
+   - Update global variable: _genai_client -> _openai_client
+
+8. **`aa37759`** - Phase 5.1: Update llm_summary() function to use OpenAI GPT-5 API
+   - Update function signature: client parameter type AsyncOpenAI
+   - Replace Gemini API call with OpenAI chat.completions.create()
+   - Remove Gemini-specific functions: _detect_block(), _extract_text_from_candidate(), _normalize_enum()
+   - Update error handling for OpenAI-specific errors
+   - Update _is_recoverable_error() for OpenAI error patterns
+   - Update extract_retry_delay_from_error() for OpenAI rate limits
+   - Simplify text extraction: direct access to response.choices[0].message.content
+
+9. **`3fe12dd`** - Phase 5.2: Update tool_server/read.py to use OpenAI client
+   - Replace get_genai_client() import with get_openai_client()
+   - Update WebReadAgent.__init__() to use get_openai_client()
+
+10. **`042b2fd`** - Phase 5.3: Replace Gemini API key with OpenAI API key in gradio_app.py
+   - Update save_api_keys() function signature: gemini_key -> openai_key
+   - Replace GEMINI_API_KEY with OPENAI_API_KEY in environment variables
+   - Update required_keys list: GEMINI_API_KEY -> OPENAI_API_KEY
+   - Update UI documentation and input field: gemini_input -> openai_input
 
 ---
 
