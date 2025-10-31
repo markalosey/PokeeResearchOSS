@@ -31,7 +31,26 @@
    - Added specific error handling for 429 (rate limit) and 401 (invalid API key)
    - Improved error messages for Tavily-specific HTTP status codes
 
-## Table of Contents
+5. **`020f17e`** - Replace Jina API with Playwright browser automation in tool_server/read.py
+   - Replaced jina_read() with playwright_read() function
+   - Added Playwright imports: async_playwright, TimeoutError, Error
+   - Removed aiohttp dependency
+   - Implemented browser automation with headless Chromium
+   - Extract content and links using JavaScript evaluation
+   - Proper error handling for Playwright-specific errors
+   - Browser cleanup in all error paths
+   - Updated WebReadAgent to use playwright_read()
+   - Updated docstrings to reference Playwright instead of Jina
+   - Removed JINA_API_KEY dependency
+
+6. **`4eaea0b`** - Remove Jina API key references from gradio_app.py
+   - Updated save_api_keys() to remove jina_key parameter
+   - Removed JINA_API_KEY from required_keys list
+   - Removed Jina AI API Key input field from UI
+   - Updated documentation to note Playwright doesn't need API key
+   - Updated save_keys_btn click handler
+
+---
 
 1. [Pre-Deployment Preparation](#pre-deployment-preparation)
 2. [Code Modifications](#code-modifications)
