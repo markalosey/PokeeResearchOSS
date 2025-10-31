@@ -35,6 +35,7 @@ echo "Port: $PORT"
 echo "Quantization: $QUANTIZATION"
 echo "GPU Memory Utilization: $GPU_MEMORY_UTILIZATION"
 echo "Max Model Length: $MAX_MODEL_LEN"
+echo "Tensor Parallel Size: 2 (using both GPUs)"
 echo "=========================================="
 
 # Check GPU availability
