@@ -21,6 +21,12 @@ GPU_HIGH_TEMP = 75  # Aggressive cooling needed
 GPU_WARM_TEMP = 65  # Moderate cooling
 GPU_NORMAL_TEMP = 55  # Normal cooling
 
+# Hysteresis thresholds (prevent fan oscillation)
+# Use lower thresholds when decreasing fan speed to prevent thrashing
+GPU_HIGH_TEMP_DOWN = 72  # Drop from 90% to 80% when temp goes below this
+GPU_WARM_TEMP_DOWN = 62  # Drop from 80% to 60% when temp goes below this
+GPU_NORMAL_TEMP_DOWN = 52  # Drop from 60% to 40% when temp goes below this
+
 # CPU/Board Temperature thresholds
 CPU_CRITICAL_TEMP = 75  # Critical for CPU
 CPU_HIGH_TEMP = 65  # High for CPU
@@ -93,17 +99,35 @@ def set_fan_speed(speed):
 
 
 # Function to determine fan speed based on GPU temperature (priority)
-def get_fan_speed_for_gpu(gpu_temp):
-    """Determine fan speed based on GPU temperature with aggressive thresholds."""
+def get_fan_speed_for_gpu(gpu_temp, current_fan_speed=None):
+    """Determine fan speed based on GPU temperature with aggressive thresholds and hysteresis.
+
+    Args:
+        gpu_temp: Current GPU temperature in Celsius
+        current_fan_speed: Current fan speed (hex value) for hysteresis calculation
+    """
+    # Use hysteresis to prevent fan oscillation
+    # When increasing: use normal thresholds
+    # When decreasing: use lower thresholds (hysteresis)
+
     if gpu_temp >= GPU_CRITICAL_TEMP:
         return 0x64  # 100% - Critical, max cooling
     elif gpu_temp >= GPU_HIGH_TEMP:
         return 0x5A  # 90% - High, aggressive cooling
     elif gpu_temp >= GPU_WARM_TEMP:
+        # Hysteresis: if currently at 90%, stay at 90% until temp drops below 72°C
+        if current_fan_speed == 0x5A and gpu_temp >= GPU_HIGH_TEMP_DOWN:
+            return 0x5A  # Stay at 90% until temp drops below 72°C
         return 0x50  # 80% - Warm, increased cooling
     elif gpu_temp >= GPU_NORMAL_TEMP:
+        # Hysteresis: if currently at 80%, stay at 80% until temp drops below 62°C
+        if current_fan_speed == 0x50 and gpu_temp >= GPU_WARM_TEMP_DOWN:
+            return 0x50  # Stay at 80% until temp drops below 62°C
         return 0x3C  # 60% - Normal, moderate cooling
     else:
+        # Hysteresis: if currently at 60%, stay at 60% until temp drops below 52°C
+        if current_fan_speed == 0x3C and gpu_temp >= GPU_NORMAL_TEMP_DOWN:
+            return 0x3C  # Stay at 60% until temp drops below 52°C
         return 0x28  # 40% - Low, minimal cooling
 
 
@@ -124,9 +148,10 @@ def get_fan_speed_for_cpu(cpu_temp):
 
 # Main daemon loop
 def main():
-    logging.info("Fan control daemon started (GPU-optimized version).")
+    logging.info("Fan control daemon started (GPU-optimized version with hysteresis).")
     # On start, set fans to a safe speed while we get first readings
-    set_fan_speed(0x50)  # 80% - safer default for GPU workloads
+    current_fan_speed = 0x50  # 80% - safer default for GPU workloads
+    set_fan_speed(current_fan_speed)
 
     while True:
         try:
@@ -149,8 +174,8 @@ def main():
 
             # GPU temperatures take priority - they run hotter and need aggressive cooling
             if highest_gpu_temp is not None:
-                # Use GPU-based fan speed, but ensure CPU doesn't override if it's critical
-                fan_speed = get_fan_speed_for_gpu(highest_gpu_temp)
+                # Use GPU-based fan speed with hysteresis, but ensure CPU doesn't override if it's critical
+                fan_speed = get_fan_speed_for_gpu(highest_gpu_temp, current_fan_speed)
 
                 # If CPU is also critical, ensure we're at max speed
                 if (
@@ -178,7 +203,10 @@ def main():
                 time.sleep(10)
                 continue
 
-            set_fan_speed(fan_speed)
+            # Only update fan speed if it changed (reduce unnecessary IPMI calls)
+            if fan_speed != current_fan_speed:
+                set_fan_speed(fan_speed)
+                current_fan_speed = fan_speed
 
             # Faster check interval for GPU workloads (3 seconds instead of 5)
             # This allows faster response to temperature changes
@@ -188,6 +216,7 @@ def main():
             logging.error(f"An error occurred in the main loop: {e}")
             # In case of an unexpected error, set a safe fan speed and wait before retrying
             set_fan_speed(0x50)  # 80% - safer for GPU workloads
+            current_fan_speed = 0x50
             time.sleep(10)
 
 
