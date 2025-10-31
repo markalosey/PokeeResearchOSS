@@ -70,22 +70,13 @@
    - Add colorlog for colored logging
    - Note: google-genai still used in reward scoring but not required for tool server
 
-13. **`d3d5c5f`** - Phase 8.1: Create Dockerfile.vllm and start-vllm.sh script
-   - Create Dockerfile.vllm for vLLM server with NVIDIA GPU support
-   - Use CUDA 12.2 base image (compatible with T4 GPUs)
-   - Install Python 3.10 and vLLM with quantization support
-   - Create scripts/start-vllm.sh startup script with GPU checks
-
-14. **`e1bfc7e`** - Phase 8.2: Create Dockerfile.tool-server
-   - Create Dockerfile.tool-server for tool server
-   - Install Playwright Chromium browser and system dependencies
-   - Configure cache and logs directories
-
-15. **`f8a9d2b`** - Phase 9: Create docker-compose.yml configuration
+13. **`4f8c9a1`** - Phase 8-9: Create Dockerfiles and docker-compose.yml
+   - Phase 8.1: Create Dockerfile.vllm and start-vllm.sh script
+   - Phase 8.2: Create Dockerfile.tool-server
+   - Phase 9: Create docker-compose.yml configuration
    - Configure vLLM service with GPU access (2x NVIDIA T4)
    - Configure tool-server service with API keys
-   - Set up volumes and networks
-   - Add healthchecks and restart policies
+   - Set up volumes and networks with healthchecks
 
 ---
 
