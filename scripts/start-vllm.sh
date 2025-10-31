@@ -22,8 +22,8 @@ set -e
 MODEL=${MODEL:-PokeeAI/pokee_research_7b}
 PORT=${PORT:-9999}
 QUANTIZATION=${QUANTIZATION:-none}
-GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.30}
-MAX_MODEL_LEN=${MAX_MODEL_LEN:-4096}
+GPU_MEMORY_UTILIZATION=${GPU_MEMORY_UTILIZATION:-0.45}
+MAX_MODEL_LEN=${MAX_MODEL_LEN:-8192}
 HF_TOKEN=${HF_TOKEN:-}
 
 # Display configuration
@@ -55,6 +55,7 @@ VLLM_ARGS=(
     "--gpu-memory-utilization" "$GPU_MEMORY_UTILIZATION"
     "--host" "0.0.0.0"
     "--enforce-eager"
+    "--tensor-parallel-size" "2"
 )
 
 # Add quantization only if specified and not empty
