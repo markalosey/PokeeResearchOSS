@@ -100,7 +100,9 @@ def enable_manual_fan_control():
         logging.info("Manual fan control enabled")
         return True
     except Exception as e:
-        logging.warning(f"Failed to enable manual fan control (may already be enabled): {e}")
+        logging.warning(
+            f"Failed to enable manual fan control (may already be enabled): {e}"
+        )
         return False
 
 
@@ -108,12 +110,20 @@ def enable_manual_fan_control():
 def set_fan_speed(speed):
     """Set fan speed via IPMI and verify it was set.
     
-    For Dell servers, we need to:
-    1. Enable manual fan control first
-    2. Set fan speed (0x30 0x30 0x02 0xff <hex_speed>)
+    For Dell servers, manual fan control should already be enabled.
+    If not, enable it first (non-blocking - don't fail if it's already enabled).
     """
-    # Ensure manual fan control is enabled
-    enable_manual_fan_control()
+    # Try to enable manual fan control (non-blocking - may already be enabled)
+    try:
+        subprocess.run(
+            ["ipmitool", "raw", "0x30", "0x30", "0x01", "0x00"],
+            capture_output=True,
+            text=True,
+            check=False,  # Don't fail if this fails
+            timeout=5,
+        )
+    except Exception:
+        pass  # Ignore errors - manual control may already be enabled
     
     try:
         result = subprocess.run(
