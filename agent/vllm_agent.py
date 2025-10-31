@@ -58,6 +58,7 @@ class VLLMDeepResearchAgent(BaseDeepResearchAgent):
         tool_config_path: str = "config/tool_config/pokee_tool_config.yaml",
         max_turns: int = 10,
         max_tool_response_length: int = 32768,
+        max_tokens: int = 1024,  # Safe default for 2048 context length models
         timeout: float = 300.0,
     ):
         """Initialize the VLLM agent.
@@ -68,6 +69,7 @@ class VLLMDeepResearchAgent(BaseDeepResearchAgent):
             tool_config_path: Path to tool configuration YAML file
             max_turns: Maximum conversation turns before giving up
             max_tool_response_length: Maximum length for tool response text
+            max_tokens: Maximum tokens to generate (default: 1024, safe for 2048 context length)
             timeout: HTTP request timeout in seconds (default: 300s = 5 minutes)
         """
         # Initialize base class (tools, regex patterns, etc.)
@@ -79,6 +81,7 @@ class VLLMDeepResearchAgent(BaseDeepResearchAgent):
 
         self.vllm_url = vllm_url
         self.model_name = model_name
+        self.max_tokens = max_tokens
         self.timeout = timeout
 
         # Initialize thread lock on first use
@@ -160,7 +163,7 @@ class VLLMDeepResearchAgent(BaseDeepResearchAgent):
             "messages": messages,
             "temperature": temperature,
             "top_p": top_p,
-            "max_tokens": 4096,
+            "max_tokens": self.max_tokens,
             "stream": False,  # Non-streaming for simpler handling
         }
 
