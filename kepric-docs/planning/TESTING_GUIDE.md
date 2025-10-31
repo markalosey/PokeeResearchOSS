@@ -27,6 +27,21 @@ curl http://localhost:8888/health
 
 **IMPORTANT: Always use a virtual environment (.venv) - never install globally!**
 
+### Prerequisites (Debian/Ubuntu)
+
+**On Debian/Ubuntu systems, install python3-venv first:**
+
+```bash
+# Check Python version
+python3 --version
+
+# Install python3-venv (replace 3.11 with your Python version if different)
+sudo apt install python3.11-venv
+
+# Or install for all Python versions
+sudo apt install python3-venv
+```
+
 ### Create and Activate Virtual Environment
 
 ```bash
@@ -48,17 +63,20 @@ pip install -r requirements.txt
 ### Always Activate Before Use
 
 **Before running CLI or Gradio apps, always activate:**
+
 ```bash
 cd /datapool/PokeeResearchOSS
 source .venv/bin/activate
 ```
 
 **Your prompt should show `(.venv)` when activated:**
+
 ```bash
 (.venv) mlosey@r720-zfs:/datapool/PokeeResearchOSS$
 ```
 
 **To deactivate:**
+
 ```bash
 deactivate
 ```
@@ -267,6 +285,7 @@ curl http://localhost:8888/health
 source .venv/bin/activate  # Activate virtual environment
 pip install gradio
 ```
+
 - Use different port: `--port 7778`
 - Check Python version
 
